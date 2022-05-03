@@ -1,9 +1,9 @@
-from .data import *
-from wanikani import Client, Kanji
+from .data import API_KEY, get_summary, get_specific_subjects
+from wanikanicli.wanikani import Client, Kanji
 from unittest.mock import patch
 
 
-@patch('wanikani.http_get')
+@patch('wanikanicli.wanikani.http_get')
 def test_summary(mock_http_get):
     """Test the summary."""
     mock_http_get.return_value = get_summary
@@ -14,12 +14,13 @@ def test_summary(mock_http_get):
     assert summary.nb_lessons == 2
     assert summary.nb_reviews == 3
 
-@patch('wanikani.http_get')
+
+@patch('wanikanicli.wanikani.http_get')
 def test_card_creation(mock_http_get):
-    """Test the card creation."""
+    """Test the card creationpyt."""
     mock_http_get.return_value = get_specific_subjects
     client = Client(API_KEY)
-    subjects = client._subject_per_id([440]) 
+    subjects = client._subject_per_id([440])
     assert subjects[0].id == 440
     assert subjects[0].object_type == 'kanji'
     assert isinstance(subjects[0].object, Kanji)

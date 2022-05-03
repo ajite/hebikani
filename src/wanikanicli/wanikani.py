@@ -1,25 +1,27 @@
 #!/usr/bin/env python
 import random
-from email.policy import default
 from optparse import OptionParser
 from os import environ
+from wanikanicli.input import input_kana
+from wanikanicli import __version__
 
 import requests
 
-__version__ = '0.0.1a'
-__all__ = ['Client']
+__all__ = ['Client', 'Kanji']
 
 API_URL = "https://api.wanikani.com/v2/"
 COMMANDS = ['summary', 'reviews']
+
 
 class CardKind(enumerate):
     """Card kinds."""
     MEANING = 'meaning'
     READING = 'reading'
 
+
 def http_get(endpoint, api_key):
     """Make a GET request to the API.
-    
+
     Args:
         endpoint (str): The endpoint to make the request to.
         api_key (str): The API key to use.
@@ -40,7 +42,7 @@ class Client:
 
     def __init__(self, api_key):
         """Initialize the client.
-        
+
         Args:
             api_key (str): The API key to use.
         """
@@ -60,7 +62,7 @@ class Client:
         subjects = self._subject_per_id(self.summary().reviews)
         session = ReviewSession(subjects)
         session.start()
-    
+
     def _subject_per_id(self, subject_ids):
         """Get subjects by ID.
 
@@ -71,12 +73,13 @@ class Client:
         data = http_get(f'subjects?ids={ids}', self.api_key)
         return [Subject(subject) for subject in data['data']]
 
+
 class ReviewSession:
     """A review session."""
 
     def __init__(self, subjects):
         """Initialize the review session.
-        
+
         Args:
             subject_id (int): The subject ID.
             session_id (int): The session ID.
@@ -84,7 +87,7 @@ class ReviewSession:
         """
         self.queue = []
         self.build_queue(subjects)
-    
+
     def build_queue(self, subjects):
         """Build the queue.
 
@@ -98,10 +101,10 @@ class ReviewSession:
     def shuffle(self):
         """Shuffle."""
         random.shuffle(self.queue)
-    
+
     def start(self):
         """Start the reviews.
-        
+
         We will start with the first card in the queue.
         If the user answers correctly, we will remove the card from the deck
         and move on to the next card.
@@ -111,7 +114,10 @@ class ReviewSession:
         while self.queue:
             card = self.queue[0]
             card.print()
-            answer = input(f"Answer ({card.card_kind}): ")
+            if card.card_kind == CardKind.MEANING:
+                answer = input(f"{card.card_kind}: ")
+            else:
+                answer = input_kana(f"{card.card_kind}: ")
             if card.solve(answer):
                 print('Correct!')
                 del self.queue[0]
@@ -120,13 +126,13 @@ class ReviewSession:
 Wrong ! The correct answer is: {', '.join(card.back)}
 """)
                 self.shuffle()
-        
+
         print('All done!')
 
 
 class APIObject:
     """Base class for API objects."""
-    
+
     def __init__(self, data):
         """Initialize the lesson.
 
@@ -135,6 +141,7 @@ class APIObject:
         """
         self.data = data
 
+
 class Summary(APIObject):
     """The summary of the user's current progress."""
 
@@ -142,7 +149,7 @@ class Summary(APIObject):
         return f"""Summary:
     Lessons: {self.nb_lessons}
     Reviews: {self.nb_reviews}"""
-    
+
     @property
     def lessons(self):
         """Get the lessons available."""
@@ -152,16 +159,17 @@ class Summary(APIObject):
     def reviews(self):
         """Get the reviews available."""
         return self.data['data']['reviews'][0]['subject_ids']
-    
+
     @property
     def nb_lessons(self):
         """Get the number of lessons available."""
         return len(self.lessons)
-    
+
     @property
     def nb_reviews(self):
         """Get the number of reviews available."""
         return len(self.reviews)
+
 
 class Card:
     """A card."""
@@ -177,22 +185,22 @@ class Card:
         self.front = front
         self.back = [text.lower() for text in back]
         self.card_kind = card_kind
-    
+
     def print(self):
         """Print the card. Radical cards might contain SVG."""
         print(f"""{self.front}""")
-    
+
     def solve(self, answer):
         """Check wether an answer is correct."""
         return answer.lower() in self.back
-    
+
 
 class Radical(APIObject):
     """A radical."""
 
     def __str__(self):
         return f"Radical: {self.characters}"
-    
+
     @property
     def characters(self):
         """Get the characters of the radical."""
@@ -201,12 +209,14 @@ class Radical(APIObject):
     @property
     def meanings(self):
         """Get the meanings of the vocabulary."""
-        return [meaning['meaning'] for meaning in self.data['data']['meanings']]
-    
+        return [meaning['meaning']
+                for meaning in self.data['data']['meanings']]
+
     @property
     def cards(self):
         """Get the card."""
         return [Card(self.characters, self.meanings)]
+
 
 class Kanji(Radical):
     """A Kanji."""
@@ -219,13 +229,14 @@ class Kanji(Radical):
     @property
     def readings(self):
         """Get the reading of the kanji."""
-        return [reading['reading'] for reading in self.data['data']['readings']]
+        return [reading['reading']
+                for reading in self.data['data']['readings']]
 
     @property
     def characters(self):
         """Get the characters of the kanji."""
         return self.data['data']['characters']
- 
+
     @property
     def cards(self):
         """Get the cards.
@@ -236,9 +247,9 @@ class Kanji(Radical):
         return _cards
 
 
-
 class Vocabulary(Kanji):
     """A vocabulary. Same as a Kanji at the moment."""
+    pass
 
 
 class Subject(APIObject):
@@ -251,18 +262,18 @@ class Subject(APIObject):
     def id(self):
         """Get the subject ID."""
         return self.data['id']
-    
+
     @property
     def object_type(self):
         """Get the object type."""
         return self.data['object']
-    
+
     @property
     def object(self):
         """Get the object type.
-        
+
         Returns:
-            APIObject: Instance of the APIObject.      
+            APIObject: Instance of the APIObject.
         """
         _object = None
         if self.object_type == 'radical':
@@ -281,14 +292,14 @@ def main():
         usage="usage: %prog [summary|reviews]",
         version="%prog " + __version__,
         description=description)
-    
+
     parser.add_option(
         "-k", "--api-key", default=environ.get('WANIKANI_API_KEY'),
-        help="The API key to use. Defaults to the WANIKANI_API_KEY environment variable.")
+        help="The API key to use. Defaults to the WANIKANI_API_KEY environment variable.")  # noqa: E501
     (options, args) = parser.parse_args()
     if not options.api_key:
-        parser.error("api_key is required.")   
-    
+        parser.error("api_key is required.")
+
     if len(args) != 1:
         parser.error("Exactly one command is required.")
 
@@ -301,6 +312,7 @@ def main():
     # They already have been displayed.
     if res:
         print(res)
+
 
 if __name__ == '__main__':
     main()
