@@ -10,6 +10,7 @@ import os
 import random
 from argparse import ArgumentParser
 from io import BytesIO
+from typing import List
 
 import ascii_magic
 import requests
@@ -36,7 +37,7 @@ class CardType(enumerate):
     VOCABULARY = 'vocabulary'
 
 
-def http_get(endpoint, api_key):
+def http_get(endpoint: str, api_key: str):
     """Make a GET request to the API.
 
     Args:
@@ -49,9 +50,12 @@ def http_get(endpoint, api_key):
     return resp.json()
 
 
-def url_to_ascii(url):
+def url_to_ascii(url: str):
     """Uses ascii_magic to generate an ascii art image from an image downloaded
     from a URL.
+
+    Args:
+        url (str): The url of the image we want to convert to ascii art.
     """
     request = requests.get(url)
     downloaded_image_file = BytesIO(request.content)
@@ -70,124 +74,6 @@ def url_to_ascii(url):
 def clear_terminal():
     """Clear the terminal."""
     os.system('cls' if os.name == 'nt' else 'clear')
-
-
-class Client:
-    """The main client class.
-
-    Usage:
-        >>> import wanikani
-        >>> client = wanikani.Client('API_KEY')
-    """
-
-    def __init__(self, api_key):
-        """Initialize the client.
-
-        Args:
-            api_key (str): The API key to use.
-        """
-        self.api_key = api_key
-
-    def summary(self):
-        """Get a summary of the user's current progress."""
-        data = http_get('summary', self.api_key)
-        return Summary(data)
-
-    def reviews(self):
-        """Get reviews for a subject.
-
-        Args:
-            subject_id (int): The subject ID to get reviews for.
-        """
-        subjects = self._subject_per_id(self.summary().reviews)
-        session = ReviewSession(subjects)
-        session.start()
-
-    def lessons(self):
-        """Get lessons from the wanikani server. Not currently implemented."""
-        raise NotImplementedError()
-
-    def _subject_per_id(self, subject_ids):
-        """Get subjects by ID.
-
-        Args:
-            subject_ids (list): A list of subject IDs to get.
-        """
-        ids = ','.join(str(i) for i in subject_ids)
-        data = http_get(f'subjects?ids={ids}', self.api_key)
-        return [Subject(subject) for subject in data['data']]
-
-
-class ReviewSession:
-    """A review session."""
-
-    def __init__(self, subjects):
-        """Initialize the review session.
-
-        Args:
-            subject_id (int): The subject ID.
-            session_id (int): The session ID.
-            data (dict): The data.
-        """
-        self.queue = []
-        self.build_queue(subjects)
-
-    def build_queue(self, subjects):
-        """Build the queue.
-
-        Args:
-            subjects (list): A list of subjects.
-        """
-        for subject in subjects:
-            self.queue.extend(subject.object.cards)
-        self.shuffle()
-
-    def shuffle(self):
-        """Shuffle."""
-        random.shuffle(self.queue)
-
-    def start(self):
-        """Start the reviews.
-
-        We will start with the first card in the queue.
-        If the user answers correctly, we will remove the card from the deck
-        and move on to the next card.
-        Otherwise we will show the user the correct answer, shuffle the deck
-        and move on to the next card.
-        """
-
-        nb_correct_answers = 0
-        nb_incorrect_answers = 0
-
-        while self.queue:
-            card = self.queue[0]
-            clear_terminal()
-
-            total_answers = nb_incorrect_answers + nb_correct_answers
-            correct_rate = ''
-            if total_answers > 0:
-                correct_rate = str(
-                    round(nb_correct_answers * 100 / total_answers, 2)) + '%'
-            print(
-                f"Review {nb_correct_answers}/{len(self.queue)} - {correct_rate}:\n\n")
-            print(card.front)
-            if card.card_kind == CardKind.MEANING:
-                answer = input(f"{card.card_type} - {card.card_kind}: ")
-            else:
-                answer = input_kana(f"{card.card_type} - {card.card_kind}: ")
-            if card.solve(answer):
-                print('Correct!')
-                nb_correct_answers += 1
-                del self.queue[0]
-            else:
-                nb_incorrect_answers += 1
-                print(f"""
-Wrong ! The correct answer is: {', '.join(card.back)}
-""")
-                self.shuffle()
-            input("Press a key to continue...")
-
-        print('All done!')
 
 
 class APIObject:
@@ -234,12 +120,14 @@ class Summary(APIObject):
 class Card:
     """A card."""
 
-    def __init__(self, front, back, card_type, card_kind=CardKind.MEANING):
+    def __init__(self, front: str, back: str, card_type: CardType,
+                 card_kind: CardKind = CardKind.MEANING):
         """Initialize the card.
 
         Args:
             front (str): The front of the card.
             back (str): The back of the card.
+            card_type (CardType): The type of card.
             card_kind (CardKind): The kind of card.
         """
         self.front = front
@@ -247,7 +135,7 @@ class Card:
         self.card_type = card_type
         self.card_kind = card_kind
 
-    def solve(self, answer):
+    def solve(self, answer: str):
         """Check wether an answer is correct."""
         return answer.lower() in self.back
 
@@ -375,6 +263,124 @@ class Subject(APIObject):
         else:
             _object = Vocabulary(self.data)
         return _object
+
+
+class Client:
+    """The main client class.
+
+    Usage:
+        >>> import wanikani
+        >>> client = wanikani.Client('API_KEY')
+    """
+
+    def __init__(self, api_key: str):
+        """Initialize the client.
+
+        Args:
+            api_key (str): The API key to use.
+        """
+        self.api_key = api_key
+
+    def summary(self):
+        """Get a summary of the user's current progress."""
+        data = http_get('summary', self.api_key)
+        return Summary(data)
+
+    def reviews(self):
+        """Get reviews for a subject.
+
+        Args:
+            subject_id (int): The subject ID to get reviews for.
+        """
+        subjects = self._subject_per_id(self.summary().reviews)
+        session = ReviewSession(subjects)
+        session.start()
+
+    def lessons(self):
+        """Get lessons from the wanikani server. Not currently implemented."""
+        raise NotImplementedError()
+
+    def _subject_per_id(self, subject_ids: List[str]):
+        """Get subjects by ID.
+
+        Args:
+            subject_ids (list): A list of subject IDs to get.
+        """
+        ids = ','.join(str(i) for i in subject_ids)
+        data = http_get(f'subjects?ids={ids}', self.api_key)
+        return [Subject(subject) for subject in data['data']]
+
+
+class ReviewSession:
+    """A review session."""
+
+    def __init__(self, subjects: List[Subject]):
+        """Initialize the review session.
+
+        Args:
+            subject_id (int): The subject ID.
+            session_id (int): The session ID.
+            data (dict): The data.
+        """
+        self.queue = []
+        self.build_queue(subjects)
+
+    def build_queue(self, subjects: List[Subject]):
+        """Build the queue.
+
+        Args:
+            subjects (list): A list of subjects.
+        """
+        for subject in subjects:
+            self.queue.extend(subject.object.cards)
+        self.shuffle()
+
+    def shuffle(self):
+        """Shuffle."""
+        random.shuffle(self.queue)
+
+    def start(self):
+        """Start the reviews.
+
+        We will start with the first card in the queue.
+        If the user answers correctly, we will remove the card from the deck
+        and move on to the next card.
+        Otherwise we will show the user the correct answer, shuffle the deck
+        and move on to the next card.
+        """
+
+        nb_correct_answers = 0
+        nb_incorrect_answers = 0
+
+        while self.queue:
+            card = self.queue[0]
+            clear_terminal()
+
+            total_answers = nb_incorrect_answers + nb_correct_answers
+            correct_rate = ''
+            if total_answers > 0:
+                correct_rate = str(
+                    round(nb_correct_answers * 100 / total_answers, 2)) + '%'
+            print(
+                f"Review {nb_correct_answers}/{len(self.queue)} - {correct_rate}:\n\n")
+            print(card.front)
+            if card.card_kind == CardKind.MEANING:
+                answer = input(f"{card.card_type} - {card.card_kind}: ")
+            else:
+                answer = input_kana(f"{card.card_type} - {card.card_kind}: ")
+            if card.solve(answer):
+                print('Correct!')
+                nb_correct_answers += 1
+                del self.queue[0]
+            else:
+                nb_incorrect_answers += 1
+                print(f"""
+Wrong ! The correct answer is: {', '.join(card.back)}
+""")
+                self.shuffle()
+            input("Press a key to continue...")
+
+        print('All done!')
 
 
 def main():
