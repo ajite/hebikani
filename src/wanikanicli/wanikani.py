@@ -1,8 +1,15 @@
 #!/usr/bin/env python
+
+"""
+This script is the program's entry point. It currently also contains a suite of
+helper functions/classes, but these will probably get refactored in the far
+future.
+"""
+
 import os
 import random
 from io import BytesIO
-from optparse import OptionParser
+from argparse import ArgumentParser
 
 import ascii_magic
 import requests
@@ -21,6 +28,7 @@ class CardKind(enumerate):
     """Card kinds."""
     MEANING = 'meaning'
     READING = 'reading'
+
 
 class CardType(enumerate):
     """Card kinds."""
@@ -48,7 +56,8 @@ def url_to_ascii(url):
     downloaded_image = Image.open(downloaded_image_file)
 
     # Downloaded image mode is LA.
-    image = Image.new("RGBA", downloaded_image.size, 'white') # Create a white rgba background
+    # Create a white rgba background
+    image = Image.new("RGBA", downloaded_image.size, 'white')
     image.paste(downloaded_image, (0, 0), downloaded_image)
     image = ImageOps.invert(image.convert('RGB'))
 
@@ -59,6 +68,7 @@ def url_to_ascii(url):
 def clear_terminal():
     """Clear the terminal."""
     os.system('cls' if os.name == 'nt' else 'clear')
+
 
 class Client:
     """The main client class.
@@ -150,8 +160,10 @@ class ReviewSession:
             total_answers = nb_incorrect_answers + nb_correct_answers
             correct_rate = ''
             if total_answers > 0:
-                correct_rate = str(round(nb_correct_answers * 100 / total_answers, 2)) + '%'
-            print(f"Review {nb_correct_answers}/{len(self.queue)} - {correct_rate}:\n\n")
+                correct_rate = str(
+                    round(nb_correct_answers * 100 / total_answers, 2)) + '%'
+            print(
+                f"Review {nb_correct_answers}/{len(self.queue)} - {correct_rate}:\n\n")
             print(card.front)
             if card.card_kind == CardKind.MEANING:
                 answer = input(f"{card.card_type} - {card.card_kind}: ")
@@ -271,8 +283,6 @@ class Radical(APIObject):
 
         return _ascii
 
-
-
     @property
     def meanings(self):
         """Get the meanings of the vocabulary."""
@@ -298,7 +308,6 @@ class Kanji(Radical):
         """Get the type."""
         return CardType.KANJI
 
-
     @property
     def readings(self):
         """Get the reading of the kanji."""
@@ -316,7 +325,8 @@ class Kanji(Radical):
         Kanji and Vocabulary cards have meaning and reading.
         """
         _cards = super(Kanji, self).cards
-        _cards.append(Card(self.characters, self.readings, self.type, CardKind.READING))
+        _cards.append(Card(self.characters, self.readings,
+                      self.type, CardKind.READING))
         return _cards
 
 
@@ -362,18 +372,21 @@ class Subject(APIObject):
 
 
 def main():
-    """Run the client."""
+    """Runs the client."""
     description = "A Python client for the Wanikani API."
-    parser = OptionParser(
-        usage=f"usage: %prog [{'|'.join(COMMANDS)}]",
-        version="%prog " + __version__,
-        description=description)
+    parser = ArgumentParser(
+        usage=f"usage: wanikani-cli [{'|'.join(COMMANDS)}]",
+        description=description
+    )
+    text = ("The API key to use. Defaults to the WANIKANI_API_KEY environment "
+            "variable.")
+    parser.add_argument(
+        "-k", "--api-key",
+        default=os.environ.get('WANIKANI_API_KEY'), help=text)
 
-    parser.add_option(
-        "-k", "--api-key", default=os.environ.get('WANIKANI_API_KEY'),
-        help="The API key to use. Defaults to the WANIKANI_API_KEY environment variable.")  # noqa: E501
-    (options, args) = parser.parse_args()
-    if not options.api_key:
+    # Extract the arguments from the parser.
+    args = parser.parse_args()
+    if args.api_key is None:
         parser.error("api_key is required.")
 
     if len(args) != 1:
@@ -382,7 +395,7 @@ def main():
     if args[0] not in COMMANDS:
         parser.error("Unknown command: " + args[0])
 
-    client = Client(options.api_key)
+    client = Client(args.api_key)
     res = getattr(client, args[0])()
     # Do not display command that do not return a response.
     # They already have been displayed.
