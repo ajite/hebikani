@@ -8,8 +8,8 @@ future.
 
 import os
 import random
-from io import BytesIO
 from argparse import ArgumentParser
+from io import BytesIO
 
 import ascii_magic
 import requests
@@ -50,8 +50,11 @@ def http_get(endpoint, api_key):
 
 
 def url_to_ascii(url):
-    r = requests.get(url)
-    downloaded_image_file = BytesIO(r.content)
+    """Uses ascii_magic to generate an ascii art image from an image downloaded
+    from a URL.
+    """
+    request = requests.get(url)
+    downloaded_image_file = BytesIO(request.content)
     downloaded_image = Image.open(downloaded_image_file)
 
     # Downloaded image mode is LA.
@@ -274,11 +277,11 @@ class Radical(APIObject):
         _ascii = None
 
         # Get the image URL. We want the smallest png.
-        for im in self.data['data']['character_images']:
-            content_type = im.get('content_type')
-            dimensions = im.get('metadata', {}).get('dimensions')
+        for image in self.data['data']['character_images']:
+            content_type = image.get('content_type')
+            dimensions = image.get('metadata', {}).get('dimensions')
             if content_type == 'image/png' and dimensions == '32x32':
-                url = im.get('url')
+                url = image.get('url')
                 break
 
         if url:
