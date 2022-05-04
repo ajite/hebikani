@@ -48,4 +48,3 @@ TODO
 
 - Submit reviews to the API
 - Link cards for the same "subject" together.
-- Improve the CLI display.

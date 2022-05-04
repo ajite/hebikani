@@ -22,6 +22,12 @@ class CardKind(enumerate):
     MEANING = 'meaning'
     READING = 'reading'
 
+class CardType(enumerate):
+    """Card kinds."""
+    RADICAL = 'radical'
+    KANJI = 'kanji'
+    VOCABULARY = 'vocabulary'
+
 
 def http_get(endpoint, api_key):
     """Make a GET request to the API.
@@ -50,7 +56,9 @@ def url_to_ascii(url):
     return ascii_art
 
 
-
+def clear_terminal():
+    """Clear the terminal."""
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 class Client:
     """The main client class.
@@ -131,21 +139,35 @@ class ReviewSession:
         Otherwise we will show the user the correct answer, shuffle the deck
         and move on to the next card.
         """
+
+        nb_correct_answers = 0
+        nb_incorrect_answers = 0
+
         while self.queue:
             card = self.queue[0]
-            card.print()
+            clear_terminal()
+
+            total_answers = nb_incorrect_answers + nb_correct_answers
+            correct_rate = ''
+            if total_answers > 0:
+                correct_rate = str(round(nb_correct_answers * 100 / total_answers, 2)) + '%'
+            print(f"Review {nb_correct_answers}/{len(self.queue)} - {correct_rate}:\n\n")
+            print(card.front)
             if card.card_kind == CardKind.MEANING:
-                answer = input(f"{card.card_kind}: ")
+                answer = input(f"{card.card_type} - {card.card_kind}: ")
             else:
-                answer = input_kana(f"{card.card_kind}: ")
+                answer = input_kana(f"{card.card_type} - {card.card_kind}: ")
             if card.solve(answer):
                 print('Correct!')
+                nb_correct_answers += 1
                 del self.queue[0]
             else:
+                nb_incorrect_answers += 1
                 print(f"""
 Wrong ! The correct answer is: {', '.join(card.back)}
 """)
                 self.shuffle()
+            input("Press a key to continue...")
 
         print('All done!')
 
@@ -194,7 +216,7 @@ class Summary(APIObject):
 class Card:
     """A card."""
 
-    def __init__(self, front, back, card_kind=CardKind.MEANING):
+    def __init__(self, front, back, card_type, card_kind=CardKind.MEANING):
         """Initialize the card.
 
         Args:
@@ -204,11 +226,8 @@ class Card:
         """
         self.front = front
         self.back = [text.lower() for text in back]
+        self.card_type = card_type
         self.card_kind = card_kind
-
-    def print(self):
-        """Print the card. Radical cards might contain SVG."""
-        print(f"""{self.front}""")
 
     def solve(self, answer):
         """Check wether an answer is correct."""
@@ -263,7 +282,7 @@ class Radical(APIObject):
     @property
     def cards(self):
         """Get the card."""
-        return [Card(self.characters, self.meanings)]
+        return [Card(self.characters, self.meanings, CardType.RADICAL)]
 
 
 class Kanji(Radical):
@@ -273,6 +292,12 @@ class Kanji(Radical):
         return f"""Vocabulary: {self.characters}
         Readings: {self.readings}
         Meanings: {self.meanings}"""
+
+    @property
+    def type(self):
+        """Get the type."""
+        return CardType.KANJI
+
 
     @property
     def readings(self):
@@ -291,13 +316,16 @@ class Kanji(Radical):
         Kanji and Vocabulary cards have meaning and reading.
         """
         _cards = super(Kanji, self).cards
-        _cards.append(Card(self.characters, self.readings, CardKind.READING))
+        _cards.append(Card(self.characters, self.readings, self.type, CardKind.READING))
         return _cards
 
 
 class Vocabulary(Kanji):
-    """A vocabulary. Same as a Kanji at the moment."""
-    pass
+    """A vocabulary"""
+    @property
+    def type(self):
+        """Get the type."""
+        return CardType.VOCABULARY
 
 
 class Subject(APIObject):
