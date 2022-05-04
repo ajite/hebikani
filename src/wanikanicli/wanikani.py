@@ -1,11 +1,15 @@
 #!/usr/bin/env python
+import os
 import random
+from io import BytesIO
 from optparse import OptionParser
-from os import environ
-from wanikanicli.input import input_kana
-from wanikanicli import __version__
 
+import ascii_magic
 import requests
+from PIL import Image, ImageOps
+
+from wanikanicli import __version__
+from wanikanicli.input import input_kana
 
 __all__ = ['Client', 'Kanji']
 
@@ -30,6 +34,22 @@ def http_get(endpoint, api_key):
     headers = {'Authorization': f'Bearer {api_key}'}
     resp = requests.get(url, headers=headers)
     return resp.json()
+
+
+def url_to_ascii(url):
+    r = requests.get(url)
+    downloaded_image_file = BytesIO(r.content)
+    downloaded_image = Image.open(downloaded_image_file)
+
+    # Downloaded image mode is LA.
+    image = Image.new("RGBA", downloaded_image.size, 'white') # Create a white rgba background
+    image.paste(downloaded_image, (0, 0), downloaded_image)
+    image = ImageOps.invert(image.convert('RGB'))
+
+    ascii_art = ascii_magic.from_image(image, columns=64)
+    return ascii_art
+
+
 
 
 class Client:
@@ -203,8 +223,36 @@ class Radical(APIObject):
 
     @property
     def characters(self):
-        """Get the characters of the radical."""
-        return self.data['data']['characters']
+        """Get the characters of the radical or its ascii image."""
+        _characters = self.data['data']['characters']
+        if not _characters:
+            _characters = self.ascii
+        return _characters
+
+    @property
+    def ascii(self):
+        """Get the ascii art of the radical from its image.
+
+        Returns:
+            str: The ascii art or None if we can't find the URL.
+        """
+        url = None
+        _ascii = None
+
+        # Get the image URL. We want the smallest png.
+        for im in self.data['data']['character_images']:
+            content_type = im.get('content_type')
+            dimensions = im.get('metadata', {}).get('dimensions')
+            if content_type == 'image/png' and dimensions == '32x32':
+                url = im.get('url')
+                break
+
+        if url:
+            _ascii = url_to_ascii(url)
+
+        return _ascii
+
+
 
     @property
     def meanings(self):
@@ -289,12 +337,12 @@ def main():
     """Run the client."""
     description = "A Python client for the Wanikani API."
     parser = OptionParser(
-        usage="usage: %prog [summary|reviews]",
+        usage=f"usage: %prog [{'|'.join(COMMANDS)}]",
         version="%prog " + __version__,
         description=description)
 
     parser.add_option(
-        "-k", "--api-key", default=environ.get('WANIKANI_API_KEY'),
+        "-k", "--api-key", default=os.environ.get('WANIKANI_API_KEY'),
         help="The API key to use. Defaults to the WANIKANI_API_KEY environment variable.")  # noqa: E501
     (options, args) = parser.parse_args()
     if not options.api_key:

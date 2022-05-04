@@ -103,3 +103,124 @@ get_specific_subjects = {
     }
   ]
 }
+
+get_subject_without_utf_entry = {
+    "object": "collection",
+    "url": "https://api.wanikani.com/v2/subjects?ids=8769",
+    "pages": {
+        "per_page": 1000,
+        "next_url": None,
+        "previous_url": None
+    },
+    "total_count": 1,
+    "data_updated_at": "2022-05-02T19:28:05.752635Z",
+    "data": [
+        {
+            "id": 8769,
+            "object": "radical",
+            "url": "https://api.wanikani.com/v2/subjects/8769",
+            "data_updated_at": "2021-10-11T22:20:15.393206Z",
+            "data": {
+                "created_at": "2012-03-03T04:09:15.000000Z",
+                "level": 5,
+                "slug": "viking",
+                "hidden_at": None,
+                "document_url": "https://www.wanikani.com/radicals/fake_meaning",
+                "characters": None,
+                "character_images": [
+                    {
+                        "url": "fake_path",
+                        "metadata": {
+                            "color": "#000000",
+                            "dimensions": "1024x1024",
+                            "style_name": "original"
+                        },
+                        "content_type": "image/png"
+                    },
+                    {
+                        "url": "fake_path",
+                        "metadata": {
+                            "color": "#000000",
+                            "dimensions": "1024x1024",
+                            "style_name": "1024px"
+                        },
+                        "content_type": "image/png"
+                    },
+                    {
+                        "url": "fake_path",
+                        "metadata": {
+                            "color": "#000000",
+                            "dimensions": "512x512",
+                            "style_name": "512px"
+                        },
+                        "content_type": "image/png"
+                    },
+                    {
+                        "url": "fake_path",
+                        "metadata": {
+                            "color": "#000000",
+                            "dimensions": "256x256",
+                            "style_name": "256px"
+                        },
+                        "content_type": "image/png"
+                    },
+                    {
+                        "url": "fake_path",
+                        "metadata": {
+                            "color": "#000000",
+                            "dimensions": "128x128",
+                            "style_name": "128px"
+                        },
+                        "content_type": "image/png"
+                    },
+                    {
+                        "url": "fake_path",
+                        "metadata": {
+                            "color": "#000000",
+                            "dimensions": "64x64",
+                            "style_name": "64px"
+                        },
+                        "content_type": "image/png"
+                    },
+                    {
+                        "url": "fake_path",
+                        "metadata": {
+                            "color": "#000000",
+                            "dimensions": "32x32",
+                            "style_name": "32px"
+                        },
+                        "content_type": "image/png"
+                    },
+                    {
+                        "url": "fake_path",
+                        "metadata": {
+                            "inline_styles": False
+                        },
+                        "content_type": "image/svg+xml"
+                    },
+                    {
+                        "url": "fake_path",
+                        "metadata": {
+                            "inline_styles": True
+                        },
+                        "content_type": "image/svg+xml"
+                    }
+                ],
+                "meanings": [
+                    {
+                        "meaning": "Fake meaning",
+                        "primary": True,
+                        "accepted_answer": True
+                    }
+                ],
+                "auxiliary_meanings": [],
+                "amalgamation_subject_ids": [
+                    29492329,
+                ],
+                "meaning_mnemonic": "Lorem Ipsum Dolor Sit Amet",
+                "lesson_position": 3909,
+                "spaced_repetition_system_id": 1
+            }
+        }
+    ]
+}
