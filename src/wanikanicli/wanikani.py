@@ -21,7 +21,6 @@ from wanikanicli.input import input_kana
 __all__ = ['Client', 'Kanji']
 
 API_URL = "https://api.wanikani.com/v2/"
-COMMANDS = ['summary', 'reviews']
 
 
 class CardKind(enumerate):
@@ -100,6 +99,10 @@ class Client:
         subjects = self._subject_per_id(self.summary().reviews)
         session = ReviewSession(subjects)
         session.start()
+
+    def lessons(self):
+        """Get lessons from the wanikani server. Not currently implemented."""
+        raise NotImplementedError()
 
     def _subject_per_id(self, subject_ids):
         """Get subjects by ID.
@@ -373,30 +376,34 @@ class Subject(APIObject):
 
 def main():
     """Runs the client."""
-    description = "A Python client for the Wanikani API."
-    parser = ArgumentParser(
-        usage=f"usage: wanikani-cli [{'|'.join(COMMANDS)}]",
-        description=description
-    )
+
+    # Work out what commands have been implemented.
+    commands = [x for x in dir(Client) if not x.startswith('_')]
+    # Make a version of commands that is nice to print.
+    command_str = str(commands)[::-1].replace(',', ' or'[::-1], 1)[-2:0:-1]
+
+    cli_description = "A Python client for the Wanikani API."
+    # Note that usage is automatically generated.
+    parser = ArgumentParser(description=cli_description)
+
+    text = ("The mode in which wanikani-cli will run. Must be " + command_str)
+    parser.add_argument("mode", help=text)
     text = ("The API key to use. Defaults to the WANIKANI_API_KEY environment "
             "variable.")
-    parser.add_argument(
-        "-k", "--api-key",
-        default=os.environ.get('WANIKANI_API_KEY'), help=text)
+    parser.add_argument("-k", "--api-key",
+                        default=os.environ.get('WANIKANI_API_KEY'), help=text)
 
     # Extract the arguments from the parser.
     args = parser.parse_args()
+
+    # Make sure that we've got an API key and that a mode has been set.
     if args.api_key is None:
         parser.error("api_key is required.")
-
-    if len(args) != 1:
-        parser.error("Exactly one command is required.")
-
-    if args[0] not in COMMANDS:
-        parser.error("Unknown command: " + args[0])
+    if args.mode is None:
+        parser.error("A mode must be specified.")
 
     client = Client(args.api_key)
-    res = getattr(client, args[0])()
+    res = getattr(client, args.mode)()
     # Do not display command that do not return a response.
     # They already have been displayed.
     if res:
