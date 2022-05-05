@@ -59,7 +59,6 @@ class KanaWordBuilder:
             # Remove the last character.
             self.romaji = self.romaji[:-1]
 
-
     @property
     def kana(self):
         """Get the kana word. Upper case letters are converted to katakana.
