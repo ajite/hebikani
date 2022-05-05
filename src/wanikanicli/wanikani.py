@@ -4,6 +4,7 @@ import random
 import tempfile
 from argparse import ArgumentParser, RawTextHelpFormatter
 from io import BytesIO
+from typing import List
 
 import ascii_magic
 import requests
@@ -17,7 +18,6 @@ __all__ = ['CardKind', 'Client', 'ClientOptions', 'Gender', 'Kanji',
            'Subject', 'ReviewSession', 'VoiceMode']
 
 API_URL = "https://api.wanikani.com/v2/"
-COMMANDS = ['summary', 'reviews']
 
 
 class CardKind(enumerate):
@@ -61,8 +61,13 @@ def http_get(endpoint: str, api_key: str):
 
 
 def url_to_ascii(url: str):
-    r = requests.get(url)
-    downloaded_image_file = BytesIO(r.content)
+    """Uses ascii_magic to generate an ascii art image from an image downloaded
+    from a URL.
+    Args:
+        url (str): The url of the image we want to convert to ascii art.
+    """
+    request = requests.get(url)
+    downloaded_image_file = BytesIO(request.content)
     downloaded_image = Image.open(downloaded_image_file)
 
     # Downloaded image mode is LA.
@@ -106,7 +111,7 @@ class Client:
         >>> client = wanikani.Client('API_KEY')
     """
 
-    def __init__(self, api_key, options: ClientOptions = None):
+    def __init__(self, api_key: str, options: ClientOptions = None):
         """Initialize the client.
 
         Args:
@@ -131,11 +136,15 @@ class Client:
         session = ReviewSession(subjects, options=self.options)
         session.start()
 
-    def _subject_per_id(self, subject_ids: list[int]):
+    def lessons(self):
+        """Get lessons from the wanikani server. Not currently implemented."""
+        raise NotImplementedError()
+
+    def _subject_per_id(self, subject_ids: List[int]):
         """Get subjects by ID.
 
         Args:
-            subject_ids (list[int]): A list of subject IDs to get.
+            subject_ids (List[int]): A list of subject IDs to get.
         """
         ids = ','.join(str(i) for i in subject_ids)
         data = http_get(f'subjects?ids={ids}', self.api_key)
@@ -223,15 +232,15 @@ class Card:
     def __init__(
             self, front: str, back: str, card_type: CardType,
             card_kind: CardKind = CardKind.MEANING,
-            audios: list[Audio] = None):
+            audios: List[Audio] = None):
         """Initialize the card.
 
         Args:
             front (str): The front of the card.
             back (str): The back of the card.
-            card_type (CardType): The card type.
+            card_type (CardType): The type of card.
             card_kind (CardKind): The kind of card.
-            audios (list[Audio]): The audios.
+            audios (List[Audio]): The audios.
         """
         self.front = front
         self.back = [text.lower() for text in back]
@@ -239,7 +248,7 @@ class Card:
         self.card_kind = card_kind
         self.audios = audios
 
-    def solve(self, answer):
+    def solve(self, answer: str):
         """Check wether an answer is correct."""
         return answer.lower() in self.back
 
@@ -269,11 +278,11 @@ class Radical(APIObject):
         _ascii = None
 
         # Get the image URL. We want the smallest png.
-        for im in self.data['data']['character_images']:
-            content_type = im.get('content_type')
-            dimensions = im.get('metadata', {}).get('dimensions')
+        for image in self.data['data']['character_images']:
+            content_type = image.get('content_type')
+            dimensions = image.get('metadata', {}).get('dimensions')
             if content_type == 'image/png' and dimensions == '32x32':
-                url = im.get('url')
+                url = image.get('url')
                 break
 
         if url:
@@ -390,12 +399,12 @@ class ReviewSession:
     """A review session."""
 
     def __init__(
-            self, subjects: list[Subject],
+            self, subjects: List[Subject],
             options: ClientOptions = None):
         """Initialize the review session.
 
         Args:
-            subjects (list[Subject]): The subjects.
+            subjects (List[Subject]): The subjects.
             options (ClientOptions): The options.
         """
         self.queue = []
@@ -403,11 +412,11 @@ class ReviewSession:
         self.options = options
         self.last_audio_played = None
 
-    def build_queue(self, subjects: list[Subject]):
+    def build_queue(self, subjects: List[Subject]):
         """Build the queue.
 
         Args:
-            subjects (list[Subject]): A list of subjects.
+            subjects (List[Subject]): A list of subjects.
         """
         for subject in subjects:
             self.queue.extend(subject.object.cards)
@@ -475,11 +484,11 @@ Wrong ! The correct answer is: {', '.join(card.back)}
             audio.play()
             self.last_audio_played = audio
 
-    def select_audio(self, audios: list[Audio]) -> Audio:
+    def select_audio(self, audios: List[Audio]) -> Audio:
         """Select the audio to play.
 
         Args:
-            audios (list[Audio]): The audios.
+            audios (List[Audio]): The audios.
 
         Returns:
             Audio: The audio to play.
@@ -509,33 +518,45 @@ Wrong ! The correct answer is: {', '.join(card.back)}
 
 def main():
     """Run the client."""
-    description = "A Python client for the Wanikani API."
-    parser = ArgumentParser(
-        usage=f"usage: %(prog)s  [{'|'.join(COMMANDS)}]",
-        description=description,
-        formatter_class=RawTextHelpFormatter
-        )
+    # Work out what commands have been implemented.
+    commands = [x for x in dir(Client) if not x.startswith('_')]
+    # Make a version of commands that is nice to print.
+    command_str = str(commands)[::-1].replace(',', ' or'[::-1], 1)[-2:0:-1]
 
-    parser.add_argument(
-        'action', choices=COMMANDS,
-        help="""summary: displays your summary.
-reviews: starts the review session.""")
+    cli_description = "A Python client for the Wanikani API."
+    # Note that usage is automatically generated.
+    parser = ArgumentParser(
+        description=cli_description,
+        formatter_class=RawTextHelpFormatter)
+
+    text = ("The mode in which wanikani-cli will run. Must be " + command_str)
+
+    parser.add_argument('mode', choices=commands, help=text)
 
     parser.add_argument(
         '-v', '--version', action='version',
         version='%(prog)s {version}'.format(version=__version__))
 
+    text = ("The API key to use. Defaults to the WANIKANI_API_KEY environment "
+            "variable.")
+
     parser.add_argument(
         "-k", "--api-key", default=os.environ.get('WANIKANI_API_KEY'),
-        help="The API key to use. Defaults to the WANIKANI_API_KEY environment variable.")  # noqa: E501
+        help=text)
+
+    text = ("Auto play audio when available. Does not work with --silent."
+            "(default: False)")
 
     parser.add_argument(
         "--autoplay", action="store_true", default=False,
-        help="Auto play audio when available. Does not work with --silent. (default: False)")  # noqa: E501
+        help=text)
+
+    text = ("Do not play or prompt for audio. Disables autoplay."
+            "(default: False)")
 
     parser.add_argument(
         "-s", "--silent", action="store_true", default=False,
-        help="Do not play or prompt for audio. Disables autoplay. (default: False)")  # noqa: E501
+        help=text)
 
     parser.add_argument(
         "--voice",
@@ -549,9 +570,11 @@ reviews: starts the review session.""")
 {VoiceMode.MALE}: plays a male voice actor.
 (default: {VoiceMode.ALTERNATE})""")
 
+    # Extract the arguments from the parser.
     args = parser.parse_args()
 
-    if not args.api_key:
+    # Make sure that we've got an API key and that a mode has been set.
+    if args.api_key is None:
         parser.error("api_key is required.")
 
     client_options = ClientOptions(
@@ -563,7 +586,7 @@ reviews: starts the review session.""")
         args.api_key,
         options=client_options)
 
-    res = getattr(client, args.action)()
+    res = getattr(client, args.mode)()
     # Do not display command that do not return a response.
     # They already have been displayed.
     if res:
