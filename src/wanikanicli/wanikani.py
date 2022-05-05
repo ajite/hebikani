@@ -164,6 +164,7 @@ class APIObject:
 
 
 class Audio(APIObject):
+    """Audio object."""
 
     @property
     def url(self):
