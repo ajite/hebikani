@@ -1,25 +1,21 @@
 #!/usr/bin/env python
-
-"""
-This script is the program's entry point. It currently also contains a suite of
-helper functions/classes, but these will probably get refactored in the far
-future.
-"""
-
 import os
 import random
-from argparse import ArgumentParser
+import tempfile
+from argparse import ArgumentParser, RawTextHelpFormatter
 from io import BytesIO
 from typing import List
 
 import ascii_magic
 import requests
 from PIL import Image, ImageOps
+from playsound import playsound
 
 from wanikanicli import __version__
 from wanikanicli.input import input_kana
 
-__all__ = ['Client', 'Kanji']
+__all__ = ['CardKind', 'Client', 'ClientOptions', 'Gender', 'Kanji',
+           'Subject', 'ReviewSession', 'VoiceMode']
 
 API_URL = "https://api.wanikani.com/v2/"
 
@@ -35,6 +31,20 @@ class CardType(enumerate):
     RADICAL = 'radical'
     KANJI = 'kanji'
     VOCABULARY = 'vocabulary'
+
+
+class Gender(enumerate):
+    """Gender"""
+    FEMALE = 'female'
+    MALE = 'male'
+
+
+class VoiceMode(enumerate):
+    """Voice Mode"""
+    ALTERNATE = 'alternate'
+    RANDOM = 'random'
+    FEMALE = 'female'
+    MALE = 'male'
 
 
 def http_get(endpoint: str, api_key: str):
@@ -53,7 +63,6 @@ def http_get(endpoint: str, api_key: str):
 def url_to_ascii(url: str):
     """Uses ascii_magic to generate an ascii art image from an image downloaded
     from a URL.
-
     Args:
         url (str): The url of the image we want to convert to ascii art.
     """
@@ -76,6 +85,72 @@ def clear_terminal():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 
+class ClientOptions:
+    """Client options."""
+
+    def __init__(
+            self, autoplay: bool = False, silent: bool = False,
+            voice_mode: VoiceMode = VoiceMode.ALTERNATE):
+        """Initialize the client options.
+
+        Args:
+            autoplay (bool): Whether to autoplay audio.
+            silent (bool): Whether to silence the output.
+            voice_mode (VoiceMode): The voice mode to use.
+        """
+        self.autoplay = autoplay
+        self.silent = silent
+        self.voice_mode = voice_mode
+
+
+class Client:
+    """The main client class.
+
+    Usage:
+        >>> import wanikani
+        >>> client = wanikani.Client('API_KEY')
+    """
+
+    def __init__(self, api_key: str, options: ClientOptions = None):
+        """Initialize the client.
+
+        Args:
+            api_key (str): The API key to use.
+            options (ClientOptions): The client options .
+        """
+        self.api_key = api_key
+        self.options = options or ClientOptions()
+
+    def summary(self):
+        """Get a summary of the user's current progress."""
+        data = http_get('summary', self.api_key)
+        return Summary(data)
+
+    def reviews(self):
+        """Get reviews for a subject.
+
+        Args:
+            subject_id (int): The subject ID to get reviews for.
+        """
+        subjects = self._subject_per_id(self.summary().reviews)
+        session = ReviewSession(subjects, options=self.options)
+        session.start()
+
+    def lessons(self):
+        """Get lessons from the wanikani server. Not currently implemented."""
+        raise NotImplementedError()
+
+    def _subject_per_id(self, subject_ids: List[int]):
+        """Get subjects by ID.
+
+        Args:
+            subject_ids (List[int]): A list of subject IDs to get.
+        """
+        ids = ','.join(str(i) for i in subject_ids)
+        data = http_get(f'subjects?ids={ids}', self.api_key)
+        return [Subject(subject) for subject in data['data']]
+
+
 class APIObject:
     """Base class for API objects."""
 
@@ -86,6 +161,40 @@ class APIObject:
             data (dict): The data to use.
         """
         self.data = data
+
+
+class Audio(APIObject):
+
+    @property
+    def url(self):
+        """Get the audio url."""
+        return self.data['url']
+
+    @property
+    def ext(self):
+        """Get the audio file extension."""
+        _ext = '.ogg'
+        if self.data['content_type'] == 'audio/mpeg':
+            _ext = '.mp3'
+        return _ext
+
+    @property
+    def voice_gender(self) -> Gender:
+        """The gender of the voice actor."""
+        _gender = Gender.FEMALE
+        if self.data['metadata']['gender'] == Gender.MALE:
+            _gender = Gender.MALE
+
+        return _gender
+
+    def play(self):
+        """Download and play the audio."""
+        r = requests.get(self.url)
+        f = tempfile.NamedTemporaryFile(suffix=self.ext)
+        f.write(r.content)
+        f.seek(0)
+        playsound(f.name)
+        f.close()
 
 
 class Summary(APIObject):
@@ -120,8 +229,10 @@ class Summary(APIObject):
 class Card:
     """A card."""
 
-    def __init__(self, front: str, back: str, card_type: CardType,
-                 card_kind: CardKind = CardKind.MEANING):
+    def __init__(
+            self, front: str, back: str, card_type: CardType,
+            card_kind: CardKind = CardKind.MEANING,
+            audios: List[Audio] = None):
         """Initialize the card.
 
         Args:
@@ -129,11 +240,13 @@ class Card:
             back (str): The back of the card.
             card_type (CardType): The type of card.
             card_kind (CardKind): The kind of card.
+            audios (List[Audio]): The audios.
         """
         self.front = front
         self.back = [text.lower() for text in back]
         self.card_type = card_type
         self.card_kind = card_kind
+        self.audios = audios
 
     def solve(self, answer: str):
         """Check wether an answer is correct."""
@@ -219,8 +332,8 @@ class Kanji(Radical):
         Kanji and Vocabulary cards have meaning and reading.
         """
         _cards = super(Kanji, self).cards
-        _cards.append(Card(self.characters, self.readings,
-                      self.type, CardKind.READING))
+        _cards.append(
+            Card(self.characters, self.readings, self.type, CardKind.READING))
         return _cards
 
 
@@ -230,6 +343,23 @@ class Vocabulary(Kanji):
     def type(self):
         """Get the type."""
         return CardType.VOCABULARY
+
+    @property
+    def audios(self):
+        """Get the audios of the vocabulary (only mp3)."""
+        return list(filter(
+            lambda audio: audio.ext == '.mp3',
+            [Audio(data) for data in
+             self.data['data']['pronunciation_audios']]))
+
+    @property
+    def cards(self):
+        """Get the cards.
+        Kanji and Vocabulary cards have meaning and reading.
+        """
+        _cards = super(Vocabulary, self).cards
+        _cards[-1].audios = self.audios
+        return _cards
 
 
 class Subject(APIObject):
@@ -265,71 +395,28 @@ class Subject(APIObject):
         return _object
 
 
-class Client:
-    """The main client class.
-
-    Usage:
-        >>> import wanikani
-        >>> client = wanikani.Client('API_KEY')
-    """
-
-    def __init__(self, api_key: str):
-        """Initialize the client.
-
-        Args:
-            api_key (str): The API key to use.
-        """
-        self.api_key = api_key
-
-    def summary(self):
-        """Get a summary of the user's current progress."""
-        data = http_get('summary', self.api_key)
-        return Summary(data)
-
-    def reviews(self):
-        """Get reviews for a subject.
-
-        Args:
-            subject_id (int): The subject ID to get reviews for.
-        """
-        subjects = self._subject_per_id(self.summary().reviews)
-        session = ReviewSession(subjects)
-        session.start()
-
-    def lessons(self):
-        """Get lessons from the wanikani server. Not currently implemented."""
-        raise NotImplementedError()
-
-    def _subject_per_id(self, subject_ids: List[str]):
-        """Get subjects by ID.
-
-        Args:
-            subject_ids (list): A list of subject IDs to get.
-        """
-        ids = ','.join(str(i) for i in subject_ids)
-        data = http_get(f'subjects?ids={ids}', self.api_key)
-        return [Subject(subject) for subject in data['data']]
-
-
 class ReviewSession:
     """A review session."""
 
-    def __init__(self, subjects: List[Subject]):
+    def __init__(
+            self, subjects: List[Subject],
+            options: ClientOptions = None):
         """Initialize the review session.
 
         Args:
-            subject_id (int): The subject ID.
-            session_id (int): The session ID.
-            data (dict): The data.
+            subjects (List[Subject]): The subjects.
+            options (ClientOptions): The options.
         """
         self.queue = []
         self.build_queue(subjects)
+        self.options = options
+        self.last_audio_played = None
 
     def build_queue(self, subjects: List[Subject]):
         """Build the queue.
 
         Args:
-            subjects (list): A list of subjects.
+            subjects (List[Subject]): A list of subjects.
         """
         for subject in subjects:
             self.queue.extend(subject.object.cards)
@@ -361,8 +448,7 @@ class ReviewSession:
             if total_answers > 0:
                 correct_rate = str(
                     round(nb_correct_answers * 100 / total_answers, 2)) + '%'
-            print(
-                f"Review {nb_correct_answers}/{len(self.queue)} - {correct_rate}:\n\n")
+            print(f"Review {nb_correct_answers}/{len(self.queue)} - {correct_rate}:\n\n")  # noqa: E501
             print(card.front)
             if card.card_kind == CardKind.MEANING:
                 answer = input(f"{card.card_type} - {card.card_kind}: ")
@@ -378,14 +464,60 @@ class ReviewSession:
 Wrong ! The correct answer is: {', '.join(card.back)}
 """)
                 self.shuffle()
+            self.ask_audio(card)
             input("Press a key to continue...")
 
         print('All done!')
 
+    def ask_audio(self, card: Card):
+        """Ask the user if they want to hear the audio.
+
+        Args:
+            card (Card): The card.
+        """
+        if self.options.silent or not card.audios:
+            return
+
+        if self.options.autoplay or input(
+                "Would you like to hear the audio? [y/N] ") in ['y', 'Y']:
+            audio = self.select_audio(card.audios)
+            audio.play()
+            self.last_audio_played = audio
+
+    def select_audio(self, audios: List[Audio]) -> Audio:
+        """Select the audio to play.
+
+        Args:
+            audios (List[Audio]): The audios.
+
+        Returns:
+            Audio: The audio to play.
+        """
+        audio = None
+
+        #  In alternate mode select a random voice actor to begin with
+        #  We then alternate with female and male voice actors
+        if self.options.voice_mode == VoiceMode.FEMALE or\
+                (self.options.voice_mode == VoiceMode.ALTERNATE and
+                 self.last_audio_played
+                 and self.last_audio_played.voice_gender == Gender.MALE):
+            audio = list(
+                filter(lambda a: a.voice_gender == Gender.FEMALE, audios))[0]
+        elif self.options.voice_mode == VoiceMode.MALE or\
+                (self.options.voice_mode == VoiceMode.ALTERNATE and
+                 self.last_audio_played
+                 and self.last_audio_played.voice_gender == Gender.FEMALE):
+            audio = list(
+                filter(lambda a: a.voice_gender == Gender.MALE, audios))[0]
+        else:
+            random_index = random.randrange(len(audios))
+            audio = audios[random_index]
+
+        return audio
+
 
 def main():
-    """Runs the client."""
-
+    """Run the client."""
     # Work out what commands have been implemented.
     commands = [x for x in dir(Client) if not x.startswith('_')]
     # Make a version of commands that is nice to print.
@@ -393,14 +525,50 @@ def main():
 
     cli_description = "A Python client for the Wanikani API."
     # Note that usage is automatically generated.
-    parser = ArgumentParser(description=cli_description)
+    parser = ArgumentParser(
+        description=cli_description,
+        formatter_class=RawTextHelpFormatter)
 
     text = ("The mode in which wanikani-cli will run. Must be " + command_str)
-    parser.add_argument("mode", help=text)
+
+    parser.add_argument('mode', choices=commands, help=text)
+
+    parser.add_argument(
+        '-v', '--version', action='version',
+        version='%(prog)s {version}'.format(version=__version__))
+
     text = ("The API key to use. Defaults to the WANIKANI_API_KEY environment "
             "variable.")
-    parser.add_argument("-k", "--api-key",
-                        default=os.environ.get('WANIKANI_API_KEY'), help=text)
+
+    parser.add_argument(
+        "-k", "--api-key", default=os.environ.get('WANIKANI_API_KEY'),
+        help=text)
+
+    text = ("Auto play audio when available. Does not work with --silent."
+            "(default: False)")
+
+    parser.add_argument(
+        "--autoplay", action="store_true", default=False,
+        help=text)
+
+    text = ("Do not play or prompt for audio. Disables autoplay."
+            "(default: False)")
+
+    parser.add_argument(
+        "-s", "--silent", action="store_true", default=False,
+        help=text)
+
+    parser.add_argument(
+        "--voice",
+        choices=[
+            VoiceMode.ALTERNATE, VoiceMode.RANDOM,
+            VoiceMode.FEMALE, VoiceMode.MALE],
+        default=VoiceMode.ALTERNATE,
+        help=f"""{VoiceMode.ALTERNATE}: alternates between female and male voice actors
+{VoiceMode.RANDOM}: plays a ramdom voice actor.
+{VoiceMode.FEMALE}: plays a female voice actress.
+{VoiceMode.MALE}: plays a male voice actor.
+(default: {VoiceMode.ALTERNATE})""")
 
     # Extract the arguments from the parser.
     args = parser.parse_args()
@@ -408,10 +576,16 @@ def main():
     # Make sure that we've got an API key and that a mode has been set.
     if args.api_key is None:
         parser.error("api_key is required.")
-    if args.mode is None:
-        parser.error("A mode must be specified.")
 
-    client = Client(args.api_key)
+    client_options = ClientOptions(
+        autoplay=args.autoplay,
+        silent=args.silent,
+        voice_mode=args.voice)
+
+    client = Client(
+        args.api_key,
+        options=client_options)
+
     res = getattr(client, args.mode)()
     # Do not display command that do not return a response.
     # They already have been displayed.
