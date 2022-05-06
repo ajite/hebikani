@@ -1,9 +1,12 @@
 [tool.poetry]
 name = "wanikani-cli"
-version = "0.0.5a"
+version = "0.0.6a"
 description = "WaniKani command line interface"
 authors = ["Augustin <ajitekun@gmail.com>"]
+readme = "README.rst"
 license = "MIT"
+homepage = "https://github.com/ajite/wanikani-cli"
+repository = "https://github.com/ajite/wanikani-cli"
 
 [tool.poetry.dependencies]
 python = "^3.9"
