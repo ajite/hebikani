@@ -1,17 +1,17 @@
 WaniKani CLI
 ============
 
+**This is an alpha release, and it is not working yet.**
 
-This is an alpha release, and it is not working yet.
+A command line interface to do your WaniKani lessons and reviews.
 
 INSTALL
 -------
 
-In a new python environment.
-
 .. code-block:: bash
 
-    python setup.py develop
+    pip install wanikani-cli
+
 
 RUN
 ---
@@ -34,6 +34,27 @@ To start a review session:
 
     wanikani-cli reviews
 
+
+DEVELOPMENT
+-----------
+This project uses `Poetry <https://python-poetry.org/docs/>`_.
+
+.. code-block:: bash
+
+    poetry install
+
+You can also use the generated `requirements.txt` file.
+
+.. code-block:: bash
+
+    pip install -r requirements.txt
+
+Please run after adding libaries through poetry:
+
+.. code-block:: bash
+
+    poetry export --without-hashes --format requirements.txt --output requirements.txt
+
 TEST
 ----
 
@@ -41,10 +62,14 @@ Run the test:
 
 .. code-block:: bash
 
-    python setup.py test
+    poetry run pytest
 
 TODO
 ----
 
-- Submit reviews to the API
+- Submit reviews to the API.
 - Link cards for the same "subject" together.
+- Accept answers with english typos.
+- Add more tests.
+
+And more...

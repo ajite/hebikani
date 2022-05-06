@@ -1,65 +1,65 @@
-from wanikanicli.input import KanaWordBuilder
+from wanikani_cli.input import KanaWordBuilder
 
 
 def test_kana_builder():
     """Test the kana builder."""
-    assert KanaWordBuilder('a').kana == 'あ'
-    assert KanaWordBuilder('ohayou').kana == 'おはよう'
-    assert KanaWordBuilder('BI-dama').kana == 'ビーだま'
-    assert KanaWordBuilder('SAKKA-').kana == 'サッカー'
+    assert KanaWordBuilder("a").kana == "あ"
+    assert KanaWordBuilder("ohayou").kana == "おはよう"
+    assert KanaWordBuilder("BI-dama").kana == "ビーだま"
+    assert KanaWordBuilder("SAKKA-").kana == "サッカー"
 
 
 def test_delete_last_kana():
     """Test deleting the last kana."""
     # remove a single letter kana
-    word = KanaWordBuilder('ohayou')
+    word = KanaWordBuilder("ohayou")
     word.remove_last_char()
-    assert word.kana == 'おはよ'
+    assert word.kana == "おはよ"
 
     # remove a 2 letters kana
-    word = KanaWordBuilder('onna')
+    word = KanaWordBuilder("onna")
     word.remove_last_char()
-    assert word.kana == 'おん'
+    assert word.kana == "おん"
 
     # remove a katakana
-    word = KanaWordBuilder('haHA')
+    word = KanaWordBuilder("haHA")
     word.remove_last_char()
-    assert word.kana == 'は'
+    assert word.kana == "は"
 
     # remove a letter
-    word = KanaWordBuilder('haH')
+    word = KanaWordBuilder("haH")
     word.remove_last_char()
-    assert word.kana == 'は'
+    assert word.kana == "は"
 
     # remove special character
-    word = KanaWordBuilder('ha-')
+    word = KanaWordBuilder("ha-")
     word.remove_last_char()
-    assert word.kana == 'は'
+    assert word.kana == "は"
 
 
 def test_add_char_to_builder():
-    word = KanaWordBuilder('o')
-    assert word.kana == 'お'
+    word = KanaWordBuilder("o")
+    assert word.kana == "お"
 
-    word.add_romaji('h')
+    word.add_romaji("h")
 
-    assert word.kana == 'おh'
+    assert word.kana == "おh"
 
-    word.add_romaji('a')
+    word.add_romaji("a")
 
-    assert word.kana == 'おは'
+    assert word.kana == "おは"
 
-    word.add_romaji('YO')
+    word.add_romaji("YO")
 
-    assert word.kana == 'おはヨ'
+    assert word.kana == "おはヨ"
 
-    word.add_romaji('Yo')
+    word.add_romaji("Yo")
 
-    assert word.kana == 'おはヨYお'
+    assert word.kana == "おはヨYお"
 
-    word.add_romaji('hh')
+    word.add_romaji("hh")
 
-    assert word.kana == 'おはヨYおhh'
+    assert word.kana == "おはヨYおhh"
 
-    word.add_romaji('a')
-    assert word.kana == 'おはヨYおっは'
+    word.add_romaji("a")
+    assert word.kana == "おはヨYおっは"
