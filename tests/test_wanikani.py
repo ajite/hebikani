@@ -1,16 +1,8 @@
 import os
 from unittest.mock import patch
 
-from wanikani_cli.wanikani import (
-    CardKind,
-    Client,
-    ClientOptions,
-    Gender,
-    Kanji,
-    ReviewSession,
-    Subject,
-    VoiceMode,
-)
+from wanikani_cli.typing import AnswerType, QuestionType, Gender, VoiceMode
+from wanikani_cli.wanikani import Client, ClientOptions, Kanji, ReviewSession, Subject
 
 from .data import (
     API_KEY,
@@ -34,18 +26,14 @@ def test_summary(mock_http_get):
 
 
 @patch("wanikani_cli.wanikani.http_get")
-def test_card_creation(mock_http_get):
-    """Test the card creation."""
+def test_subjects_creation(mock_http_get):
+    """Test the subjects creation."""
     mock_http_get.return_value = get_specific_subjects
     client = Client(API_KEY)
     subjects = client._subject_per_id([440])
     assert subjects[0].id == 440
     assert subjects[0].object_type == "kanji"
     assert isinstance(subjects[0].object, Kanji)
-    assert subjects[0].object.cards[0].front == "一"
-    assert subjects[0].object.cards[0].back == ["one"]
-    assert subjects[0].object.cards[1].front == "一"
-    assert subjects[0].object.cards[1].back == ["いち", "ひと", "かず"]
 
 
 @patch("requests.get")
@@ -90,8 +78,8 @@ def test_card_audio_creation():
         == "https://cdn.wanikani.com/audios/3020-subject-2467.mp3?1547862356"
     )  # noqa: E501
     card_meaning, card_reading = subject.object.cards
-    assert card_meaning.card_kind == "meaning"
-    assert card_reading.card_kind == "reading"
+    assert card_meaning.question_type == QuestionType.MEANING
+    assert card_reading.question_type == QuestionType.READING
 
     assert card_meaning.audios is None
     assert len(card_reading.audios) == 2
@@ -115,7 +103,7 @@ def test_review_session_audio_mode(audio_play_mock, input):
 
     # removes all the meaning
     session.queue = list(
-        filter(lambda c: c.card_kind == CardKind.READING, session.queue)
+        filter(lambda c: c.question_type == QuestionType.READING, session.queue)
     )
 
     # check we have half
@@ -143,3 +131,43 @@ def test_review_session_audio_mode(audio_play_mock, input):
         session.ask_audio(card)
         assert session.last_audio_played.voice_gender != current_gender
         current_gender = session.last_audio_played.voice_gender
+
+
+def test_card_answer():
+    """Test"""
+    subject = Subject(get_specific_subjects["data"][0])
+    meaning, reading = subject.object.cards
+
+    assert len(reading.answer_manager.answers) == 3
+    assert len(reading.answer_manager.acceptable_answers) == 1
+    assert len(reading.answer_manager.unacceptable_answers) == 2
+    assert len(meaning.answer_manager.answers) == 1
+
+    assert meaning.answer_manager.primary.value == "one"
+    assert reading.answer_manager.primary.value == "いち"
+
+    assert reading.solve("いち") == AnswerType.CORRECT
+    assert reading.solve("ひと") == AnswerType.INEXACT
+    assert reading.solve("かず") == AnswerType.INEXACT
+    assert reading.solve("ちい") == AnswerType.INCORRECT
+    assert meaning.solve("ones") == AnswerType.A_BIT_OFF
+    assert meaning.solve("onsen") == AnswerType.INCORRECT
+    assert meaning.solve("first") == AnswerType.INCORRECT
+
+    # Check with a longer word
+
+    meaning.answer_manager.primary.data["meaning"] = "skillful"
+    assert meaning.answer_manager.primary.value == "skillful"
+
+    assert meaning.solve("skillful") == AnswerType.CORRECT
+    assert meaning.solve("skilfull") == AnswerType.A_BIT_OFF
+    assert meaning.solve("unskilfull") == AnswerType.INCORRECT
+
+
+def test_review_session_acceptable_answer():
+    """Test"""
+    subject = Subject(vocabulary_subject)
+    meaning, reading = subject.object.cards
+
+    # assert card.solve("いち") is True
+    # assert card.solve("ひと") is True

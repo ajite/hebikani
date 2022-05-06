@@ -3,6 +3,7 @@ import os
 import random
 import tempfile
 from argparse import ArgumentParser, RawTextHelpFormatter
+from difflib import get_close_matches
 from io import BytesIO
 from typing import List
 
@@ -13,50 +14,14 @@ from playsound import playsound
 
 from wanikani_cli import __version__
 from wanikani_cli.input import input_kana
+from wanikani_cli.typing import AnswerType, CardType, Gender, QuestionType, VoiceMode
 
-__all__ = [
-    "CardKind",
-    "Client",
-    "ClientOptions",
-    "Gender",
-    "Kanji",
-    "Subject",
-    "ReviewSession",
-    "VoiceMode",
-]
+__all__ = ["Client", "ClientOptions", "Kanji", "Subject", "ReviewSession"]
 
 API_URL = "https://api.wanikani.com/v2/"
 
-
-class CardKind(enumerate):
-    """Card kinds."""
-
-    MEANING = "meaning"
-    READING = "reading"
-
-
-class CardType(enumerate):
-    """Card kinds."""
-
-    RADICAL = "radical"
-    KANJI = "kanji"
-    VOCABULARY = "vocabulary"
-
-
-class Gender(enumerate):
-    """Gender"""
-
-    FEMALE = "female"
-    MALE = "male"
-
-
-class VoiceMode(enumerate):
-    """Voice Mode"""
-
-    ALTERNATE = "alternate"
-    RANDOM = "random"
-    FEMALE = "female"
-    MALE = "male"
+# Ratio when using difflib.get_close_matches()
+RATIO_CLOSE_MATCHES = 0.8
 
 
 def http_get(endpoint: str, api_key: str):
@@ -242,35 +207,177 @@ class Summary(APIObject):
         return len(self.reviews)
 
 
+class Answer(APIObject):
+    """The answer to a review."""
+
+    def __init__(self, data, question_type: QuestionType):
+        """Initialize the answer.
+
+        Args:
+            data (dict): The data to use.
+            question_type (QuestionType): The question type.
+        """
+        super().__init__(data)
+        self.question_type = question_type
+
+    @property
+    def is_primary(self) -> bool:
+        """Whether the answer is the primary answer.
+
+        Returns:
+            bool: Whether the answer is the primary answer.
+        """
+        return self.data["primary"]
+
+    @property
+    def is_acceptable(self) -> bool:
+        """Whether the answer is acceptable.
+
+        Returns:
+            bool: Whether the answer is acceptable.
+        """
+        return self.data["accepted_answer"]
+
+    @property
+    def value(self) -> str:
+        """Get the value of the answer."""
+        return self.data[self.question_type].lower().strip()
+
+    @property
+    def type(self) -> str:
+        """Get the type of the answer (onyomi, kunyomi, nanori)."""
+
+        # We do not need to worry since meaning do not have this attribute
+        # Still It is better to use GET in case.
+        return self.data.get("type", "")
+
+
+class AnswerManager:
+    """The answer manager."""
+
+    def __init__(self, answers: List[Answer]):
+        """Initialize the answer manager.
+
+        Args:
+            answers (List[Answer]): The answers to use.
+        """
+        self.answers = answers
+
+    def add(self, answer: Answer):
+        """Add an answer.
+
+        Args:
+            answer (Answer): The answer to add.
+        """
+        self.answers.append(answer)
+
+    @property
+    def primary(self) -> Answer:
+        """Get the primary answer.
+
+        Returns:
+            Answer: The primary answer.
+
+        Raises:
+            ValueError: If no primary answer is found.
+        """
+        answers = list(filter(lambda a: a.is_primary, self.answers))
+        if len(answers) == 0:
+            raise ValueError("No primary answer found.")
+        return answers[0]
+
+    @property
+    def acceptable_answers(self) -> List[Answer]:
+        """Get the acceptable answers.
+
+        Returns:
+            List[Answer]: The acceptable answers.
+        """
+        return list(filter(lambda a: a.is_acceptable, self.answers))
+
+    @property
+    def unacceptable_answers(self) -> List[Answer]:
+        """Get the unacceptable answers.
+
+        Returns:
+            List[Answer]: The unacceptable answers.
+        """
+        return list(filter(lambda a: not a.is_acceptable, self.answers))
+
+    @property
+    def question_type(self) -> QuestionType:
+        """Get the question type.
+
+        Returns:
+            QuestionType: The question type.
+        """
+        return self.primary.question_type
+
+    @property
+    def answer_values(self) -> str:
+        """Get the answer values in a string.
+
+        Returns:
+            str: The answer values join with a comma.
+        """
+        return ", ".join(a.value for a in self.acceptable_answers)
+
+
 class Card:
     """A card."""
 
     def __init__(
         self,
         front: str,
-        back: str,
+        answer_manager: AnswerManager,
         card_type: CardType,
-        card_kind: CardKind = CardKind.MEANING,
         audios: List[Audio] = None,
     ):
         """Initialize the card.
 
         Args:
             front (str): The front of the card.
-            back (str): The back of the card.
+            answer_manager (AnswerManager): The answer manager.
             card_type (CardType): The type of card.
-            card_kind (CardKind): The kind of card.
             audios (List[Audio]): The audios.
         """
         self.front = front
-        self.back = [text.lower() for text in back]
+        self.answer_manager = answer_manager
         self.card_type = card_type
-        self.card_kind = card_kind
         self.audios = audios
 
-    def solve(self, answer: str):
+    @property
+    def question_type(self) -> QuestionType:
+        """Get the question type.
+
+        Returns:
+            QuestionType: The question type.
+        """
+        return self.answer_manager.question_type
+
+    def solve(self, inputed_answer: str):
         """Check wether an answer is correct."""
-        return answer.lower() in self.back
+        inputed_answer = inputed_answer.lower().strip()
+        answer_type = AnswerType.INCORRECT
+        if inputed_answer in [a.value for a in self.answer_manager.acceptable_answers]:
+            answer_type = AnswerType.CORRECT
+        # Check for close matches only when asking for the meaning
+        # of a word.
+        elif (
+            self.answer_manager.question_type == QuestionType.MEANING
+            and get_close_matches(
+                inputed_answer,
+                [a.value for a in self.answer_manager.acceptable_answers],
+                cutoff=RATIO_CLOSE_MATCHES,
+            )
+        ):
+            answer_type = AnswerType.A_BIT_OFF
+        elif inputed_answer in [
+            a.value for a in self.answer_manager.unacceptable_answers
+        ]:
+            answer_type = AnswerType.INEXACT
+
+        return answer_type
 
 
 class Radical(APIObject):
@@ -278,6 +385,11 @@ class Radical(APIObject):
 
     def __str__(self):
         return f"Radical: {self.characters}"
+
+    @property
+    def type(self):
+        """Get the type."""
+        return CardType.RADICAL
 
     @property
     def characters(self):
@@ -310,15 +422,32 @@ class Radical(APIObject):
 
         return _ascii
 
-    @property
-    def meanings(self):
-        """Get the meanings of the vocabulary."""
-        return [meaning["meaning"] for meaning in self.data["data"]["meanings"]]
+    def answer_manager(self, question_type: QuestionType) -> AnswerManager:
+        """Build and get the answer manager.
+
+        Args:
+            question_type (QuestionType): The question type.
+
+        Returns:
+            AnswerManager: The answer manager.
+        """
+        return AnswerManager(
+            [
+                Answer(answer, question_type)
+                for answer in self.data["data"][question_type + "s"]
+            ]
+        )
 
     @property
     def cards(self):
         """Get the card."""
-        return [Card(self.characters, self.meanings, CardType.RADICAL)]
+        return [
+            Card(
+                self.characters,
+                self.answer_manager(QuestionType.MEANING),
+                self.type,
+            )
+        ]
 
 
 class Kanji(Radical):
@@ -335,11 +464,6 @@ class Kanji(Radical):
         return CardType.KANJI
 
     @property
-    def readings(self):
-        """Get the reading of the kanji."""
-        return [reading["reading"] for reading in self.data["data"]["readings"]]
-
-    @property
     def characters(self):
         """Get the characters of the kanji."""
         return self.data["data"]["characters"]
@@ -350,7 +474,9 @@ class Kanji(Radical):
         Kanji and Vocabulary cards have meaning and reading.
         """
         _cards = super(Kanji, self).cards
-        _cards.append(Card(self.characters, self.readings, self.type, CardKind.READING))
+        _cards.append(
+            Card(self.characters, self.answer_manager(QuestionType.READING), self.type)
+        )
         return _cards
 
 
@@ -457,6 +583,7 @@ class ReviewSession:
         nb_correct_answers = 0
         nb_incorrect_answers = 0
 
+        """Start the review session."""
         while self.queue:
             card = self.queue[0]
             clear_terminal()
@@ -471,26 +598,74 @@ class ReviewSession:
                 f"Review {nb_correct_answers}/{len(self.queue)} - {correct_rate}:\n\n"
             )  # noqa: E501
             print(card.front)
-            if card.card_kind == CardKind.MEANING:
-                answer = input(f"{card.card_type} - {card.card_kind}: ")
-            else:
-                answer = input_kana(f"{card.card_type} - {card.card_kind}: ")
-            if card.solve(answer):
-                print("Correct!")
-                nb_correct_answers += 1
-                del self.queue[0]
-            else:
-                nb_incorrect_answers += 1
-                print(
-                    f"""
-Wrong ! The correct answer is: {', '.join(card.back)}
-"""
-                )
-                self.shuffle()
+            answer_type = None
+
+            """We use a loop in case the user answers is not wrong but not acceptable
+
+            E.g: the question asks for the kunyomi but we wrote the onyomi.
+            We do not want to fail the user because of this. It is not a mistake.
+            """
+            while answer_type is None or answer_type == AnswerType.INEXACT:
+                answer_type = self.ask_answer(card)
+
+                # If the user answers correctly, we remove the card from the deck
+                if answer_type in AnswerType.CORRECT:
+                    print("Correct!")
+                    nb_correct_answers += 1
+                    del self.queue[0]
+                # If the user is a bit off, we show the correct answer and ask
+                # to validate his answer
+                elif answer_type == AnswerType.A_BIT_OFF:
+                    print(
+                        "Your answer is a bit off.",
+                        f"The correct answer is: {card.answer_manager.answer_values}",
+                    )
+                    if input("Do you want to validate your answer? (Y/n) ") in [
+                        "n",
+                        "N",
+                    ]:
+                        nb_incorrect_answers += 1
+                        self.shuffle()
+                    else:
+                        nb_correct_answers += 1
+                        del self.queue[0]
+
+                # If the user answers another reading, we ask the user to correct it
+                elif answer_type == AnswerType.INEXACT:
+                    print(
+                        "Try again. We are looking for the",
+                        f"{card.answer_manager.primary.type}.",
+                    )
+                # If the user answers incorrectly, we show the correct answer
+                else:
+                    nb_incorrect_answers += 1
+                    print(
+                        "Wrong ! The correct answer is:",
+                        card.answer_manager.answer_values,
+                    )
+                    self.shuffle()
+
             self.ask_audio(card)
             input("Press a key to continue...")
 
         print("All done!")
+
+    def ask_answer(self, card: Card):
+        """Ask the user for an answer.
+
+        Args:
+            card (Card): The card.
+
+        Returns:
+            AnswerType: The answer type.
+        """
+        if card.question_type == QuestionType.MEANING:
+            inputed_answer = input(f"{card.card_type} - {card.question_type}: ")
+        else:
+            inputed_answer = input_kana(f"{card.card_type} - {card.question_type}: ")
+
+        answer_type = card.solve(inputed_answer)
+        return answer_type
 
     def ask_audio(self, card: Card):
         """Ask the user if they want to hear the audio.
