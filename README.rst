@@ -49,7 +49,7 @@ You can also use the generated `requirements.txt` file.
 
     pip install -r requirements.txt
 
-Please run after adding libaries through poetry:
+Please run that command after adding external libaries through poetry:
 
 .. code-block:: bash
 
