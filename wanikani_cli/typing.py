@@ -17,8 +17,8 @@ class QuestionType(enumerate):
     READING = "reading"
 
 
-class CardType(enumerate):
-    """Card types."""
+class SubjectObject(enumerate):
+    """Subject objects."""
 
     RADICAL = "radical"
     KANJI = "kanji"

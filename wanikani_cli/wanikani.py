@@ -14,9 +14,15 @@ from playsound import playsound
 
 from wanikani_cli import __version__
 from wanikani_cli.input import input_kana
-from wanikani_cli.typing import AnswerType, CardType, Gender, QuestionType, VoiceMode
+from wanikani_cli.typing import (
+    AnswerType,
+    SubjectObject,
+    Gender,
+    QuestionType,
+    VoiceMode,
+)
 
-__all__ = ["Client", "ClientOptions", "Kanji", "Subject", "ReviewSession"]
+__all__ = ["Client", "ClientOptions", "Subject", "ReviewSession"]
 
 API_URL = "https://api.wanikani.com/v2/"
 
@@ -34,6 +40,20 @@ def http_get(endpoint: str, api_key: str):
     url = API_URL + endpoint
     headers = {"Authorization": f"Bearer {api_key}"}
     resp = requests.get(url, headers=headers)
+    return resp.json()
+
+
+def http_post(endpoint: str, api_key: str, data: dict):
+    """Make a POST request to the API.
+
+    Args:
+        endpoint (str): The endpoint to make the request to.
+        api_key (str): The API key to use.
+        data (dict): The data to send.
+    """
+    url = API_URL + endpoint
+    headers = {"Authorization": f"Bearer {api_key}"}
+    resp = requests.post(url, headers=headers, json=data)
     return resp.json()
 
 
@@ -70,6 +90,8 @@ class ClientOptions:
         autoplay: bool = False,
         silent: bool = False,
         voice_mode: VoiceMode = VoiceMode.ALTERNATE,
+        hard_mode: bool = False,
+        dry_run: bool = False,
     ):
         """Initialize the client options.
 
@@ -77,10 +99,14 @@ class ClientOptions:
             autoplay (bool): Whether to autoplay audio.
             silent (bool): Whether to silence the output.
             voice_mode (VoiceMode): The voice mode to use.
+            hard_mode (bool): Whether to use hard mode.
+            dry_run (bool): Whether to run in dry run mode.
         """
         self.autoplay = autoplay
         self.silent = silent
         self.voice_mode = voice_mode
+        self.hard_mode = hard_mode
+        self.dry_run = dry_run
 
 
 class Client:
@@ -113,7 +139,7 @@ class Client:
             subject_id (int): The subject ID to get reviews for.
         """
         subjects = self._subject_per_id(self.summary().reviews)
-        session = ReviewSession(subjects, options=self.options)
+        session = ReviewSession(self, subjects)
         session.start()
 
     def lessons(self):
@@ -246,9 +272,8 @@ class Answer(APIObject):
     @property
     def type(self) -> str:
         """Get the type of the answer (onyomi, kunyomi, nanori)."""
-
-        # We do not need to worry since meaning do not have this attribute
-        # Still It is better to use GET in case.
+        # We do not need to worry since meaning questions do not use
+        # this attribute. It is better to use GET in case.
         return self.data.get("type", "")
 
 
@@ -262,14 +287,6 @@ class AnswerManager:
             answers (List[Answer]): The answers to use.
         """
         self.answers = answers
-
-    def add(self, answer: Answer):
-        """Add an answer.
-
-        Args:
-            answer (Answer): The answer to add.
-        """
-        self.answers.append(answer)
 
     @property
     def primary(self) -> Answer:
@@ -322,74 +339,116 @@ class AnswerManager:
         """
         return ", ".join(a.value for a in self.acceptable_answers)
 
-
-class Card:
-    """A card."""
-
-    def __init__(
-        self,
-        front: str,
-        answer_manager: AnswerManager,
-        card_type: CardType,
-        audios: List[Audio] = None,
-    ):
-        """Initialize the card.
-
-        Args:
-            front (str): The front of the card.
-            answer_manager (AnswerManager): The answer manager.
-            card_type (CardType): The type of card.
-            audios (List[Audio]): The audios.
-        """
-        self.front = front
-        self.answer_manager = answer_manager
-        self.card_type = card_type
-        self.audios = audios
-
-    @property
-    def question_type(self) -> QuestionType:
-        """Get the question type.
-
-        Returns:
-            QuestionType: The question type.
-        """
-        return self.answer_manager.question_type
-
-    def solve(self, inputed_answer: str):
+    def solve(self, inputed_answer: str, hard_mode: bool = False) -> bool:
         """Check wether an answer is correct."""
         inputed_answer = inputed_answer.lower().strip()
         answer_type = AnswerType.INCORRECT
-        if inputed_answer in [a.value for a in self.answer_manager.acceptable_answers]:
+        if hard_mode and QuestionType.READING:
+            # In hard mode check that all the answers are correct.
+            # Only works for reading questions.
+            answer_type = AnswerType.CORRECT
+            if set([i.strip() for i in inputed_answer.split(",")]) == set(
+                [a.value for a in self.acceptable_answers]
+            ):
+                answer_type = AnswerType.CORRECT
+            else:
+                answer_type = AnswerType.INCORRECT
+        elif inputed_answer in [a.value for a in self.acceptable_answers]:
             answer_type = AnswerType.CORRECT
         # Check for close matches only when asking for the meaning
         # of a word.
-        elif (
-            self.answer_manager.question_type == QuestionType.MEANING
-            and get_close_matches(
-                inputed_answer,
-                [a.value for a in self.answer_manager.acceptable_answers],
-                cutoff=RATIO_CLOSE_MATCHES,
-            )
+        elif self.question_type == QuestionType.MEANING and get_close_matches(
+            inputed_answer,
+            [a.value for a in self.acceptable_answers],
+            cutoff=RATIO_CLOSE_MATCHES,
         ):
             answer_type = AnswerType.A_BIT_OFF
-        elif inputed_answer in [
-            a.value for a in self.answer_manager.unacceptable_answers
-        ]:
+        elif inputed_answer in [a.value for a in self.unacceptable_answers]:
             answer_type = AnswerType.INEXACT
 
         return answer_type
 
 
-class Radical(APIObject):
-    """A radical."""
+class ReviewUpdate:
+    """Reviews log all the correct and incorrect answers provided through the
+    'Reviews' section of WaniKani. Review records are created when a user answers
+    all the parts of a subject correctly once; some subjects have both meaning
+    or reading parts, and some only have one or the other.
+    Note that reviews are not created for the quizzes in lessons.."""
 
-    def __str__(self):
-        return f"Radical: {self.characters}"
+    def __init__(
+        self,
+        client: Client,
+        subject_id: int,
+        incorrect_meaning_answers: int,
+        incorrect_reading_answers: int,
+    ):
+        """Initialize the review update.
+
+        Args:
+            subject_id (int): The subject id.
+            incorrect_meaning_answers (int): The number of incorrect meaning answers.
+            incorrect_reading_answers (int): The number of incorrect reading answers.
+        """
+        self.client = client
+        self.subject_id = subject_id
+        self.incorrect_meaning_answers = incorrect_meaning_answers
+        self.incorrect_reading_answers = incorrect_reading_answers
+
+    def save(self):
+        """Save the review update on WaniKani."""
+        data = {
+            "review": {
+                "subject_id": self.subject_id,
+                "incorrect_meaning_answers": self.incorrect_meaning_answers,
+                "incorrect_reading_answers": self.incorrect_reading_answers,
+            }
+        }
+        if self.client.options.dry_run is False:
+            http_post("reviews", self.client.api_key, data)
+
+
+class Subject(APIObject):
+    """A subject."""
+
+    def __str__(self) -> str:
+        return self.object.__str__()
+
+    def __init__(self, data):
+        super().__init__(data)
+        self._readings = None
+        self._meanings = None
+        self._meaning_question = Question(self, QuestionType.MEANING)
+        self._reading_question = None
+        if self.object != SubjectObject.RADICAL:
+            self._reading_question = Question(self, QuestionType.READING)
 
     @property
-    def type(self):
-        """Get the type."""
-        return CardType.RADICAL
+    def id(self):
+        """Get the subject ID."""
+        return self.data["id"]
+
+    @property
+    def object(self):
+        """Get the object type."""
+        return self.data["object"]
+
+    @property
+    def audios(self) -> List[Audio]:
+        """Get the audios for vocabulary items (only mp3).
+
+        Returns:
+            List[Audio]: The audios.
+        """
+        _audios = []
+        if self.object == SubjectObject.VOCABULARY:
+            _audios = list(
+                filter(
+                    lambda audio: audio.ext == ".mp3",
+                    [Audio(data) for data in self.data["data"]["pronunciation_audios"]],
+                )
+            )
+        return _audios
 
     @property
     def characters(self):
@@ -422,138 +481,131 @@ class Radical(APIObject):
 
         return _ascii
 
-    def answer_manager(self, question_type: QuestionType) -> AnswerManager:
-        """Build and get the answer manager.
+    @property
+    def readings(self):
+        """Get the reading of the kanji."""
+        if self._readings is None:
+            self._readings = AnswerManager(
+                [
+                    Answer(answer, QuestionType.READING)
+                    for answer in self.data["data"]["readings"]
+                ]
+            )
+        return self._readings
+
+    @property
+    def meanings(self):
+        """Get the meaning of the kanji."""
+        if self._meanings is None:
+            self._meanings = AnswerManager(
+                [
+                    Answer(answer, QuestionType.MEANING)
+                    for answer in self.data["data"]["meanings"]
+                ]
+            )
+        return self._meanings
+
+    @property
+    def reading_question(self):
+        """Get the reading question."""
+        return self._reading_question
+
+    @property
+    def meaning_question(self):
+        """Get the meaning question."""
+        return self._meaning_question
+
+    @property
+    def questions(self):
+        """Get the questions."""
+        _questions = [self.meaning_question]
+        if self.reading_question:
+            _questions.append(self.reading_question)
+        return _questions
+
+    @property
+    def solved(self):
+        """Check if the subject is solved."""
+        return all(q.solved for q in self.questions)
+
+
+class Question:
+    """The question."""
+
+    def __init__(self, subject: Subject, question_type: QuestionType):
+        self.subject = subject
+        self.question_type = question_type
+        self.wrong_answer_count = 0
+        self.solved = False
+
+    def solve(self, inputed_answer: str, hard_mode: bool = False) -> AnswerType:
+        """Check wether an answer is correct.
 
         Args:
-            question_type (QuestionType): The question type.
+            inputed_answer (str): The inputed answer.
+
 
         Returns:
-            AnswerManager: The answer manager.
+            AnswerType: The answer type.
         """
-        return AnswerManager(
-            [
-                Answer(answer, question_type)
-                for answer in self.data["data"][question_type + "s"]
-            ]
-        )
 
-    @property
-    def cards(self):
-        """Get the card."""
-        return [
-            Card(
-                self.characters,
-                self.answer_manager(QuestionType.MEANING),
-                self.type,
-            )
-        ]
-
-
-class Kanji(Radical):
-    """A Kanji."""
-
-    def __str__(self) -> str:
-        return f"""Vocabulary: {self.characters}
-        Readings: {self.readings}
-        Meanings: {self.meanings}"""
-
-    @property
-    def type(self):
-        """Get the type."""
-        return CardType.KANJI
-
-    @property
-    def characters(self):
-        """Get the characters of the kanji."""
-        return self.data["data"]["characters"]
-
-    @property
-    def cards(self):
-        """Get the cards.
-        Kanji and Vocabulary cards have meaning and reading.
-        """
-        _cards = super(Kanji, self).cards
-        _cards.append(
-            Card(self.characters, self.answer_manager(QuestionType.READING), self.type)
-        )
-        return _cards
-
-
-class Vocabulary(Kanji):
-    """A vocabulary"""
-
-    @property
-    def type(self):
-        """Get the type."""
-        return CardType.VOCABULARY
-
-    @property
-    def audios(self):
-        """Get the audios of the vocabulary (only mp3)."""
-        return list(
-            filter(
-                lambda audio: audio.ext == ".mp3",
-                [Audio(data) for data in self.data["data"]["pronunciation_audios"]],
-            )
-        )
-
-    @property
-    def cards(self):
-        """Get the cards.
-        Kanji and Vocabulary cards have meaning and reading.
-        """
-        _cards = super(Vocabulary, self).cards
-        _cards[-1].audios = self.audios
-        return _cards
-
-
-class Subject(APIObject):
-    """A subject."""
-
-    def __str__(self) -> str:
-        return self.object.__str__()
-
-    @property
-    def id(self):
-        """Get the subject ID."""
-        return self.data["id"]
-
-    @property
-    def object_type(self):
-        """Get the object type."""
-        return self.data["object"]
-
-    @property
-    def object(self):
-        """Get the object type.
-
-        Returns:
-            APIObject: Instance of the APIObject.
-        """
-        _object = None
-        if self.object_type == "radical":
-            _object = Radical(self.data)
-        elif self.object_type == "kanji":
-            _object = Kanji(self.data)
+        _answer = None
+        if self.question_type == QuestionType.READING:
+            _answer = self.subject.readings.solve(inputed_answer, hard_mode)
         else:
-            _object = Vocabulary(self.data)
-        return _object
+            _answer = self.subject.meanings.solve(inputed_answer)
+
+        if _answer == AnswerType.INCORRECT:
+            self.wrong_answer_count += 1
+        elif _answer == AnswerType.CORRECT:
+            self.solved = True
+
+        return _answer
+
+    def add_wrong_answer(self):
+        """Add a wrong answer.
+        Used when a user tags his answer as wrong.
+        """
+        self.wrong_answer_count += 1
+
+    @property
+    def answer_values(self):
+        """Get the answer values."""
+        values = None
+        if self.question_type == QuestionType.MEANING:
+            values = self.subject.meanings.answer_values
+        else:
+            values = self.subject.readings.answer_values
+
+        return values
+
+    @property
+    def primary(self):
+        """Get the primary answer."""
+        _primary = None
+        if self.question_type == QuestionType.MEANING:
+            _primary = self.subject.meanings.primary
+        else:
+            _primary = self.subject.readings.primary
+
+        return _primary
 
 
 class ReviewSession:
     """A review session."""
 
-    def __init__(self, subjects: List[Subject], options: ClientOptions = None):
+    def __init__(self, client: Client, subjects: List[Subject]):
         """Initialize the review session.
 
         Args:
             subjects (List[Subject]): The subjects.
-            options (ClientOptions): The options.
+            client (Client): The client.
         """
+        self.client = client
+        self.subjects = subjects
         self.queue = []
+        self.nb_subjects = 0
         self.build_queue(subjects)
-        self.options = options
         self.last_audio_played = None
 
     def build_queue(self, subjects: List[Subject]):
@@ -563,7 +615,8 @@ class ReviewSession:
             subjects (List[Subject]): A list of subjects.
         """
         for subject in subjects:
-            self.queue.extend(subject.object.cards)
+            self.queue.extend(subject.questions)
+            self.nb_subjects += 1
         self.shuffle()
 
     def shuffle(self):
@@ -573,19 +626,20 @@ class ReviewSession:
     def start(self):
         """Start the reviews.
 
-        We will start with the first card in the queue.
-        If the user answers correctly, we will remove the card from the deck
-        and move on to the next card.
+        We will start with the first question in the queue.
+        If the user answers correctly, we will remove the question from the deck
+        and move on to the next question.
         Otherwise we will show the user the correct answer, shuffle the deck
         and move on to the next card.
         """
 
         nb_correct_answers = 0
-        nb_incorrect_answers = 0
+        nb_incorrect_answers = 0  # Multiple error count multiple times.
+        nb_completed_subjects = 0
 
         """Start the review session."""
         while self.queue:
-            card = self.queue[0]
+            question = self.queue[0]
             clear_terminal()
 
             total_answers = nb_incorrect_answers + nb_correct_answers
@@ -595,9 +649,10 @@ class ReviewSession:
                     str(round(nb_correct_answers * 100 / total_answers, 2)) + "%"
                 )
             print(
-                f"Review {nb_correct_answers}/{len(self.queue)} - {correct_rate}:\n\n"
-            )  # noqa: E501
-            print(card.front)
+                f"Review {nb_completed_subjects}/{self.nb_subjects}",
+                f"- {correct_rate}:\n\n",
+            )
+            print(question.subject.characters)
             answer_type = None
 
             """We use a loop in case the user answers is not wrong but not acceptable
@@ -606,10 +661,9 @@ class ReviewSession:
             We do not want to fail the user because of this. It is not a mistake.
             """
             while answer_type is None or answer_type == AnswerType.INEXACT:
-                answer_type = self.ask_answer(card)
-
+                answer_type = self.ask_answer(question)
                 # If the user answers correctly, we remove the card from the deck
-                if answer_type in AnswerType.CORRECT:
+                if answer_type == AnswerType.CORRECT:
                     print("Correct!")
                     nb_correct_answers += 1
                     del self.queue[0]
@@ -618,68 +672,89 @@ class ReviewSession:
                 elif answer_type == AnswerType.A_BIT_OFF:
                     print(
                         "Your answer is a bit off.",
-                        f"The correct answer is: {card.answer_manager.answer_values}",
+                        f"The correct answer is: {question.answer_values}",
                     )
                     if input("Do you want to validate your answer? (Y/n) ") in [
                         "n",
                         "N",
                     ]:
                         nb_incorrect_answers += 1
+                        question.add_wrong_answer()
                         self.shuffle()
                     else:
                         nb_correct_answers += 1
+                        question.solved = True
                         del self.queue[0]
 
                 # If the user answers another reading, we ask the user to correct it
                 elif answer_type == AnswerType.INEXACT:
                     print(
                         "Try again. We are looking for the",
-                        f"{card.answer_manager.primary.type}.",
+                        f"{question.primary.type}.",
                     )
                 # If the user answers incorrectly, we show the correct answer
                 else:
                     nb_incorrect_answers += 1
                     print(
                         "Wrong ! The correct answer is:",
-                        card.answer_manager.answer_values,
+                        question.answer_values,
                     )
                     self.shuffle()
 
-            self.ask_audio(card)
+            subject = question.subject
+            if subject.solved:
+                self.nb_subjects -= 1
+                nb_completed_subjects += 1
+                ReviewUpdate(
+                    self.client,
+                    subject.id,
+                    subject.meaning_question.wrong_answer_count,
+                    subject.reading_question.wrong_answer_count
+                    if subject.reading_question
+                    else 0,
+                ).save()
+
+            self.ask_audio(question)
             input("Press a key to continue...")
 
         print("All done!")
 
-    def ask_answer(self, card: Card):
+    def ask_answer(self, question: Question):
         """Ask the user for an answer.
 
         Args:
-            card (Card): The card.
+            question (Question): The question.
 
         Returns:
             AnswerType: The answer type.
         """
-        if card.question_type == QuestionType.MEANING:
-            inputed_answer = input(f"{card.card_type} - {card.question_type}: ")
-        else:
-            inputed_answer = input_kana(f"{card.card_type} - {card.question_type}: ")
+        prompt = f"{question.subject.object} - {question.question_type}: "
 
-        answer_type = card.solve(inputed_answer)
+        if question.question_type == QuestionType.MEANING:
+            inputed_answer = input(prompt)
+        else:
+            inputed_answer = input_kana(prompt)
+
+        answer_type = question.solve(inputed_answer, self.client.options.hard_mode)
         return answer_type
 
-    def ask_audio(self, card: Card):
+    def ask_audio(self, question: Question):
         """Ask the user if they want to hear the audio.
 
         Args:
             card (Card): The card.
         """
-        if self.options.silent or not card.audios:
+        if (
+            self.client.options.silent
+            or not question.subject.audios
+            or question.question_type == QuestionType.MEANING
+        ):
             return
 
-        if self.options.autoplay or input(
+        if self.client.options.autoplay or input(
             "Would you like to hear the audio? [y/N] "
         ) in ["y", "Y"]:
-            audio = self.select_audio(card.audios)
+            audio = self.select_audio(question.subject.audios)
             audio.play()
             self.last_audio_played = audio
 
@@ -696,14 +771,14 @@ class ReviewSession:
 
         #  In alternate mode select a random voice actor to begin with
         #  We then alternate with female and male voice actors
-        if self.options.voice_mode == VoiceMode.FEMALE or (
-            self.options.voice_mode == VoiceMode.ALTERNATE
+        if self.client.options.voice_mode == VoiceMode.FEMALE or (
+            self.client.options.voice_mode == VoiceMode.ALTERNATE
             and self.last_audio_played
             and self.last_audio_played.voice_gender == Gender.MALE
         ):
             audio = list(filter(lambda a: a.voice_gender == Gender.FEMALE, audios))[0]
-        elif self.options.voice_mode == VoiceMode.MALE or (
-            self.options.voice_mode == VoiceMode.ALTERNATE
+        elif self.client.options.voice_mode == VoiceMode.MALE or (
+            self.client.options.voice_mode == VoiceMode.ALTERNATE
             and self.last_audio_played
             and self.last_audio_played.voice_gender == Gender.FEMALE
         ):
@@ -754,7 +829,7 @@ def main():
 
     parser.add_argument("--autoplay", action="store_true", default=False, help=text)
 
-    text = "Do not play or prompt for audio. Disables autoplay." "(default: False)"
+    text = "Do not play or prompt for audio. Disables autoplay. (default: False)"
 
     parser.add_argument("-s", "--silent", action="store_true", default=False, help=text)
 
@@ -774,6 +849,25 @@ def main():
 (default: {VoiceMode.ALTERNATE})""",
     )
 
+    text = (
+        "You will need to input all the correcting meanings to",
+        "validate an answer. E.g: 'なん, なん' for 何. The order does not matter.",
+    )
+
+    text = (
+        "Ask for all the readings separated with a comma."
+        "E.g: The answer for 何　should be 'なん,なに'."
+        "The order does not matter. (default: False)"
+    )
+
+    parser.add_argument("--hard", action="store_true", default=False, help=text)
+
+    text = (
+        "Do not submit answers to the WaniKani API."
+        "This mode is meant for testing purposes."
+    )
+
+    parser.add_argument("--dry-run", action="store_true", default=False, help=text)
     # Extract the arguments from the parser.
     args = parser.parse_args()
 
@@ -782,7 +876,11 @@ def main():
         parser.error("api_key is required.")
 
     client_options = ClientOptions(
-        autoplay=args.autoplay, silent=args.silent, voice_mode=args.voice
+        autoplay=args.autoplay,
+        silent=args.silent,
+        voice_mode=args.voice,
+        hard_mode=args.hard,
+        dry_run=args.dry_run,
     )
 
     client = Client(args.api_key, options=client_options)

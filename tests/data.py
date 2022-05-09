@@ -260,3 +260,35 @@ vocabulary_subject = {
         "spaced_repetition_system_id": 1,
     },
 }
+
+double_reading_subject = {
+    "id": 100,
+    "object": "kanji",
+    "url": "https://api.wanikani.com/v2/subjects/100",
+    "data_updated_at": "2018-12-12T23:09:52.234049Z",
+    "data": {
+        "auxiliary_meanings": [{"type": "whitelist", "meaning": "1"}],
+        "characters": "何",
+        "component_subject_ids": [440],
+        "context_sentences": [
+            {"en": "Let’s meet up once.", "ja": "一ど、あいましょう。"},
+            {"en": "First place was an American.", "ja": "一いはアメリカ人でした。"},
+            {"en": "I’m the weakest man in the world.", "ja": "ぼくはせかいで一ばんよわい。"},
+        ],
+        "created_at": "2012-02-28T08:04:47.000000Z",
+        "document_url": "https://www.wanikani.com/vocabulary/%E4%B8%80",
+        "hidden_at": None,
+        "lesson_position": 44,
+        "level": 1,
+        "meanings": [{"meaning": "What", "primary": True, "accepted_answer": True}],
+        "meaning_mnemonic": "As is the case with most vocab words that consist of a single kanji, this vocab word has the same meaning as the kanji it parallels, which is \u003cvocabulary\u003eone\u003c/vocabulary\u003e.",
+        "parts_of_speech": ["numeral"],
+        "readings": [
+            {"primary": True, "reading": "なに", "accepted_answer": True},
+            {"primary": False, "reading": "なん", "accepted_answer": True},
+        ],
+        "reading_mnemonic": "When a vocab word is all alone and has no okurigana (hiragana attached to kanji) connected to it, it usually uses the kun'yomi reading. Numbers are an exception, however. When a number is all alone, with no kanji or okurigana, it is going to be the on'yomi reading, which you learned with the kanji.  Just remember this exception for alone numbers and you'll be able to read future number-related vocab to come.",
+        "slug": "一",
+        "spaced_repetition_system_id": 1,
+    },
+}
