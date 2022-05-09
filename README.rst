@@ -1,7 +1,7 @@
 WaniKani CLI
 ============
 
-**This is an alpha release, and it is not working yet.**
+**This works for review. It is still experimental. Use at your own risk.**
 
 A command line interface to do your WaniKani lessons and reviews.
 
