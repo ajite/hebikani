@@ -188,3 +188,22 @@ def test_review_session():
     session = ReviewSession(client, [subject] * 10)
     assert len(session.queue) == 20
     assert session.nb_subjects == 10
+
+
+def test_mnemonics():
+    """Test the mnemonics."""
+    subject = Subject(vocabulary_subject)
+    assert subject.reading_question.mnemonic == (
+        "When a vocab word is all alone and has no okurigana "
+        "(hiragana attached to kanji) connected to it, it usually "
+        "uses the kun'yomi reading. Numbers are an exception, however. "
+        "When a number is all alone, with no kanji or okurigana, it is "
+        "going to be the on'yomi reading, which you learned with the kanji.  "
+        "Just remember this exception for alone numbers and you'll be able to "
+        "read future number-related vocab to come."
+    )
+    assert subject.meaning_question.mnemonic == (
+        "As is the case with most vocab words that consist of a single kanji, "
+        "this vocab word has the same meaning as the kanji it parallels, which "
+        "is \u003cvocabulary\u003eone\u003c/vocabulary\u003e."
+    )

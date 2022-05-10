@@ -34,6 +34,10 @@ To start a review session:
 
     wanikani-cli reviews
 
+To start a review session in hard mode with audio and a limited number of reviews:
+.. code-block:: bash
+
+    wanikani-cli reviews --hard --autoplay --limit 10
 
 DEVELOPMENT
 -----------

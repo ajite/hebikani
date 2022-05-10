@@ -2,9 +2,10 @@
 import os
 import random
 import tempfile
-from argparse import ArgumentParser, RawTextHelpFormatter
+from argparse import ArgumentParser, RawTextHelpFormatter, ArgumentTypeError
 from difflib import get_close_matches
 from io import BytesIO
+from signal import SIGINT, signal
 from typing import List
 
 import ascii_magic
@@ -16,15 +17,17 @@ from wanikani_cli import __version__
 from wanikani_cli.input import input_kana
 from wanikani_cli.typing import (
     AnswerType,
-    SubjectObject,
     Gender,
     QuestionType,
+    SubjectObject,
     VoiceMode,
 )
 
 __all__ = ["Client", "ClientOptions", "Subject", "ReviewSession"]
 
 API_URL = "https://api.wanikani.com/v2/"
+MIN_NB_SUBJECTS = 1
+MAX_NB_SUJECTS = 500
 
 # Ratio when using difflib.get_close_matches()
 RATIO_CLOSE_MATCHES = 0.8
@@ -92,6 +95,8 @@ class ClientOptions:
         voice_mode: VoiceMode = VoiceMode.ALTERNATE,
         hard_mode: bool = False,
         dry_run: bool = False,
+        limit: int = 50,
+        display_mnemonics: bool = False,
     ):
         """Initialize the client options.
 
@@ -101,12 +106,16 @@ class ClientOptions:
             voice_mode (VoiceMode): The voice mode to use.
             hard_mode (bool): Whether to use hard mode.
             dry_run (bool): Whether to run in dry run mode.
+            limit (int): The number of subjects to review.
+            display_mnemonics (bool): Whether to display mnemonics.
         """
         self.autoplay = autoplay
         self.silent = silent
         self.voice_mode = voice_mode
         self.hard_mode = hard_mode
         self.dry_run = dry_run
+        self.limit = limit
+        self.display_mnemonics = display_mnemonics
 
 
 class Client:
@@ -528,11 +537,35 @@ class Subject(APIObject):
         """Check if the subject is solved."""
         return all(q.solved for q in self.questions)
 
+    @property
+    def reading_mnemonic(self) -> str:
+        """Get the reading mnemonic.
+
+        Returns:
+            str: The reading mnemonic.
+        """
+        return self.data["data"]["reading_mnemonic"]
+
+    @property
+    def meaning_mnemonic(self) -> str:
+        """Get the meaning mnemonic.
+
+        Returns:
+            str: The meaning mnemonic.
+        """
+        return self.data["data"]["meaning_mnemonic"]
+
 
 class Question:
     """The question."""
 
     def __init__(self, subject: Subject, question_type: QuestionType):
+        """Initialize the question.
+
+        Args:
+            subject (Subject): The subject.
+            question_type (QuestionType): The question type.
+        """
         self.subject = subject
         self.question_type = question_type
         self.wrong_answer_count = 0
@@ -580,8 +613,12 @@ class Question:
         return values
 
     @property
-    def primary(self):
-        """Get the primary answer."""
+    def primary(self) -> Answer:
+        """Get the primary answer.
+
+        Returns:
+            Answer: The primary answer.
+        """
         _primary = None
         if self.question_type == QuestionType.MEANING:
             _primary = self.subject.meanings.primary
@@ -589,6 +626,16 @@ class Question:
             _primary = self.subject.readings.primary
 
         return _primary
+
+    @property
+    def mnemonic(self) -> str:
+        """Get the mnemonic."""
+        _mnemonic = None
+        if self.question_type == QuestionType.READING:
+            _mnemonic = self.subject.reading_mnemonic
+        else:
+            _mnemonic = self.subject.meaning_mnemonic
+        return _mnemonic
 
 
 class ReviewSession:
@@ -617,6 +664,8 @@ class ReviewSession:
         for subject in subjects:
             self.queue.extend(subject.questions)
             self.nb_subjects += 1
+            if self.nb_subjects >= self.client.options.limit:
+                break
         self.shuffle()
 
     def shuffle(self):
@@ -637,22 +686,34 @@ class ReviewSession:
         nb_incorrect_answers = 0  # Multiple error count multiple times.
         nb_completed_subjects = 0
 
+        clear_terminal()
+
+        print(
+            "\nReview session started.\n"
+            "The session will end when you have answered all the questions.\n"
+            "Questions are submitted automatically when both reading and "
+            "meaning have been answer for a same subject.\n"
+            "You can quit the session at any time by typing 'ctrl + c'.\n\n"
+            f"This session contains {self.nb_subjects} subjects.\n"
+        )
+
+        input("Press any key to start the session...")
         """Start the review session."""
         while self.queue:
             question = self.queue[0]
             clear_terminal()
 
             total_answers = nb_incorrect_answers + nb_correct_answers
-            correct_rate = ""
+            correct_rate = "X"
             if total_answers > 0:
                 correct_rate = (
                     str(round(nb_correct_answers * 100 / total_answers, 2)) + "%"
                 )
             print(
                 f"Review {nb_completed_subjects}/{self.nb_subjects}",
-                f"- {correct_rate}:\n\n",
+                f"- {correct_rate}:\n",
             )
-            print(question.subject.characters)
+            print(question.subject.characters + "\n")
             answer_type = None
 
             """We use a loop in case the user answers is not wrong but not acceptable
@@ -664,7 +725,7 @@ class ReviewSession:
                 answer_type = self.ask_answer(question)
                 # If the user answers correctly, we remove the card from the deck
                 if answer_type == AnswerType.CORRECT:
-                    print("Correct!")
+                    print("\nCorrect!")
                     nb_correct_answers += 1
                     del self.queue[0]
                 # If the user is a bit off, we show the correct answer and ask
@@ -689,16 +750,19 @@ class ReviewSession:
                 # If the user answers another reading, we ask the user to correct it
                 elif answer_type == AnswerType.INEXACT:
                     print(
-                        "Try again. We are looking for the",
+                        "\nTry again. We are looking for the",
                         f"{question.primary.type}.",
                     )
                 # If the user answers incorrectly, we show the correct answer
                 else:
                     nb_incorrect_answers += 1
                     print(
-                        "Wrong ! The correct answer is:",
+                        "\nWrong ! The correct answer is:",
                         question.answer_values,
                     )
+
+                    if self.client.options.display_mnemonics:
+                        print(f"\nMnemonic: {question.mnemonic}")
                     self.shuffle()
 
             subject = question.subject
@@ -715,9 +779,9 @@ class ReviewSession:
                 ).save()
 
             self.ask_audio(question)
-            input("Press a key to continue...")
+            input("\nPress a key to continue...")
 
-        print("All done!")
+        print("\nAll done!")
 
     def ask_answer(self, question: Question):
         """Ask the user for an answer.
@@ -868,6 +932,17 @@ def main():
     )
 
     parser.add_argument("--dry-run", action="store_true", default=False, help=text)
+
+    text = "Number of subjects to review per session. (default: 50,  max: 500)"
+
+    parser.add_argument("--limit", type=range_int_type, default=50, help=text)
+
+    text = (
+        "Display mnemonic when an answer is wrong. (default: False)"
+    )
+
+    parser.add_argument("--mnemonics", action="store_true", default=False, help=text)
+
     # Extract the arguments from the parser.
     args = parser.parse_args()
 
@@ -881,15 +956,41 @@ def main():
         voice_mode=args.voice,
         hard_mode=args.hard,
         dry_run=args.dry_run,
+        limit=args.limit,
+        display_mnemonics=args.mnemonics,
     )
 
     client = Client(args.api_key, options=client_options)
 
+    signal(SIGINT, handler)  # Register the SIGINT handler.
     res = getattr(client, args.mode)()
     # Do not display command that do not return a response.
     # They already have been displayed.
     if res:
         print(res)
+
+
+def handler(signal_received, frame):
+    """Terminate the program gracefully."""
+    clear_terminal()
+    print("Program was terminated by user.\n\n")
+    exit(1)
+
+
+def range_int_type(arg):
+    """Type function for argparse - a int within some predefined bounds"""
+    try:
+        arg = int(arg)
+    except ValueError:
+        raise ArgumentTypeError("Must be a floating point number")
+    if arg < MIN_NB_SUBJECTS or arg > MAX_NB_SUJECTS:
+        raise ArgumentTypeError(
+            "Argument must be <= "
+            + str(MAX_NB_SUJECTS)
+            + " and >= "
+            + str(MIN_NB_SUBJECTS)
+        )
+    return arg
 
 
 if __name__ == "__main__":
