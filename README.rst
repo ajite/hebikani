@@ -72,9 +72,6 @@ Run the test:
 TODO
 ----
 
-- Submit reviews to the API.
-- Link cards for the same "subject" together.
-- Accept answers with english typos.
-- Add more tests.
+- Add lessons
 
 And more...
