@@ -2189,7 +2189,7 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "651d59e0b967a34373ca58f981fa55c213210eea068c317f48b1e25611b1e28c"
+content-hash = "baf3eab7d1324af5c14f234ade1d10a868d700e4a30b8a413f5de5cc3ad7114b"
 
 [metadata.files]
 ascii-magic = [

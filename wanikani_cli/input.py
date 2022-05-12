@@ -81,12 +81,19 @@ else:  # macOS and Linux
     import termios
     import tty
 
-    def getch():
-        # type: () -> str
+    def getch(use_raw_input=True):
+        """Get a character from the user.
+
+        Args:
+            use_raw_input (bool): Use raw input.
+        """
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
-            tty.setraw(sys.stdin.fileno())
+            if use_raw_input:
+                tty.setraw(sys.stdin.fileno())
+            else:
+                tty.setcbreak(sys.stdin.fileno())
             ch = sys.stdin.read(1)
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)

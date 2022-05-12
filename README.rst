@@ -1,7 +1,7 @@
 WaniKani CLI
 ============
 
-**This works for review. It is still experimental. Use at your own risk.**
+**This works for both reviews and lessons. It is still experimental. Use at your own risk.**
 
 A command line interface to do your WaniKani lessons and reviews.
 
@@ -68,10 +68,3 @@ Run the test:
 .. code-block:: bash
 
     poetry run pytest
-
-TODO
-----
-
-- Add lessons
-
-And more...

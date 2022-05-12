@@ -1,8 +1,9 @@
 #!/usr/bin/env python
+from wanikani_cli.input import getch
 import os
 import random
 import tempfile
-from argparse import ArgumentParser, RawTextHelpFormatter, ArgumentTypeError
+from argparse import ArgumentParser, ArgumentTypeError, RawTextHelpFormatter
 from difflib import get_close_matches
 from io import BytesIO
 from signal import SIGINT, signal
@@ -10,6 +11,7 @@ from typing import List
 
 import ascii_magic
 import requests
+from colorama import Back, Fore
 from PIL import Image, ImageOps
 from playsound import playsound
 
@@ -60,6 +62,20 @@ def http_post(endpoint: str, api_key: str, data: dict):
     return resp.json()
 
 
+def http_put(endpoint: str, api_key: str, data: dict):
+    """Make a PUT request to the API.
+
+    Args:
+        endpoint (str): The endpoint to make the request to.
+        api_key (str): The API key to use.
+        data (dict): The data to send.
+    """
+    url = API_URL + endpoint
+    headers = {"Authorization": f"Bearer {api_key}"}
+    resp = requests.put(url, headers=headers, json=data)
+    return resp.json()
+
+
 def url_to_ascii(url: str):
     """Uses ascii_magic to generate an ascii art image from an image downloaded
     from a URL.
@@ -83,6 +99,19 @@ def url_to_ascii(url: str):
 def clear_terminal():
     """Clear the terminal."""
     os.system("cls" if os.name == "nt" else "clear")
+
+
+def handler(signal_received, frame):
+    """Terminate the program gracefully."""
+    clear_terminal()
+    print("Program was terminated by user.\n\n")
+    exit(1)
+
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]
 
 
 class ClientOptions:
@@ -135,6 +164,7 @@ class Client:
         """
         self.api_key = api_key
         self.options = options or ClientOptions()
+        self._subject_cache = {}
 
     def summary(self):
         """Get a summary of the user's current progress."""
@@ -147,23 +177,45 @@ class Client:
         Args:
             subject_id (int): The subject ID to get reviews for.
         """
-        subjects = self._subject_per_id(self.summary().reviews)
+        subjects = self._subject_per_ids(self.summary().reviews)
         session = ReviewSession(self, subjects)
         session.start()
 
     def lessons(self):
-        """Get lessons from the wanikani server. Not currently implemented."""
-        raise NotImplementedError()
+        """Get lessons from the wanikani API."""
+        subjects = self._subject_per_ids(self.summary().lessons)
+        session = LessonSession(self, subjects)
+        session.start()
 
-    def _subject_per_id(self, subject_ids: List[int]):
+    def _subject_per_ids(self, subject_ids: List[int]):
         """Get subjects by ID.
 
         Args:
             subject_ids (List[int]): A list of subject IDs to get.
         """
-        ids = ",".join(str(i) for i in subject_ids)
-        data = http_get(f"subjects?ids={ids}", self.api_key)
-        return [Subject(subject) for subject in data["data"]]
+        # Remove subjects that are already in the cache
+        missing_ids = list(set(subject_ids) - set(self._subject_cache.keys()))
+        if missing_ids:
+            ids = ",".join(str(i) for i in missing_ids)
+            data = http_get(f"subjects?ids={ids}", self.api_key)
+
+            for data in data["data"]:
+                subject = Subject(data)
+                self._subject_cache[subject.id] = subject
+
+        return [self._subject_cache[i] for i in subject_ids]
+
+    def _assignment_per_subject_id(self, subject_id: int):
+        """Get assignments by subject ID.
+
+        Args:
+            subject_id (int): The subject ID to get assignment for.
+        """
+        assignment_id = None
+        data = http_get(f"assignments?subject_ids={str(subject_id)}", self.api_key)
+        if data["data"]:
+            assignment_id = data["data"][0]["id"]
+        return assignment_id
 
 
 class APIObject:
@@ -240,6 +292,28 @@ class Summary(APIObject):
     def nb_reviews(self):
         """Get the number of reviews available."""
         return len(self.reviews)
+
+
+class ContextSentence(APIObject):
+    """Context Setence object from WaniKani"""
+
+    @property
+    def en(self) -> str:
+        """The english sentence.
+
+        Returns:
+            str: The english sentence.
+        """
+        return self.data["en"]
+
+    @property
+    def ja(self) -> str:
+        """The japanese sentence.
+
+        Returns:
+            str: The japanese sentence.
+        """
+        return self.data["ja"]
 
 
 class Answer(APIObject):
@@ -383,7 +457,7 @@ class ReviewUpdate:
     'Reviews' section of WaniKani. Review records are created when a user answers
     all the parts of a subject correctly once; some subjects have both meaning
     or reading parts, and some only have one or the other.
-    Note that reviews are not created for the quizzes in lessons.."""
+    Note that reviews are not created for the quizzes in lessons."""
 
     def __init__(
         self,
@@ -395,6 +469,7 @@ class ReviewUpdate:
         """Initialize the review update.
 
         Args:
+            client (Client): The client to use.
             subject_id (int): The subject id.
             incorrect_meaning_answers (int): The number of incorrect meaning answers.
             incorrect_reading_answers (int): The number of incorrect reading answers.
@@ -415,6 +490,33 @@ class ReviewUpdate:
         }
         if self.client.options.dry_run is False:
             http_post("reviews", self.client.api_key, data)
+
+
+class AssignmentUpdate:
+    """Mark the assignment as started, moving the assignment from the lessons queue
+    to the review queue. Returns the updated assignment."""
+
+    def __init__(
+        self,
+        client: Client,
+        subject_id: int,
+    ):
+        """Initialize the review update.
+
+        Args:
+            client (Client): The client.
+            subject_id (int): The subject id.
+        """
+        self.client = client
+        self.subject_id = subject_id
+        self.assignment_id = self.client._assignment_per_subject_id(subject_id)
+
+    def save(self):
+        """Send the data to on WaniKani."""
+        if self.client.options.dry_run is False:
+            http_put(
+                f"assignments/{str(self.assignment_id)}/start", self.client.api_key, {}
+            )
 
 
 class Subject(APIObject):
@@ -555,6 +657,26 @@ class Subject(APIObject):
         """
         return self.data["data"]["meaning_mnemonic"]
 
+    @property
+    def context_sentences(self) -> List[ContextSentence]:
+        """Get the context sentences.
+
+        Returns:
+            List[ContextSentence]: The context sentences.
+        """
+        return [
+            ContextSentence(s) for s in self.data["data"].get("context_sentences", [])
+        ]
+
+    @property
+    def component_subject_ids(self) -> List[int]:
+        """Get the component subject ids.
+
+        Returns:
+            List[int]: The component subject ids.
+        """
+        return self.data["data"].get("component_subject_ids", [])
+
 
 class Question:
     """The question."""
@@ -638,22 +760,69 @@ class Question:
         return _mnemonic
 
 
-class ReviewSession:
-    """A review session."""
+class Session:
+    """The session. Base class for Reviews and Lessons."""
 
     def __init__(self, client: Client, subjects: List[Subject]):
-        """Initialize the review session.
+        """Initialize the session.
 
         Args:
-            subjects (List[Subject]): The subjects.
             client (Client): The client.
+            subjects (List[Subject]): The subjects.
         """
         self.client = client
         self.subjects = subjects
+        self.last_audio_played = None
+
+    def select_audio(self, audios: List[Audio]) -> Audio:
+        """Select the audio to play.
+
+        Args:
+            audios (List[Audio]): The audios.
+
+        Returns:
+            Audio: The audio to play.
+        """
+        audio = None
+
+        #  In alternate mode select a random voice actor to begin with
+        #  We then alternate with female and male voice actors
+        if self.client.options.voice_mode == VoiceMode.FEMALE or (
+            self.client.options.voice_mode == VoiceMode.ALTERNATE
+            and self.last_audio_played
+            and self.last_audio_played.voice_gender == Gender.MALE
+        ):
+            audio = list(filter(lambda a: a.voice_gender == Gender.FEMALE, audios))[0]
+        elif self.client.options.voice_mode == VoiceMode.MALE or (
+            self.client.options.voice_mode == VoiceMode.ALTERNATE
+            and self.last_audio_played
+            and self.last_audio_played.voice_gender == Gender.FEMALE
+        ):
+            audio = list(filter(lambda a: a.voice_gender == Gender.MALE, audios))[0]
+        else:
+            random_index = random.randrange(len(audios))
+            audio = audios[random_index]
+
+        return audio
+
+
+class ReviewSession(Session):
+    """A review session."""
+
+    def __init__(
+        self, client: Client, subjects: List[Subject], from_lesson: bool = False
+    ):
+        """Initialize the review session.
+
+        Args:
+            client (Client): The client.
+            subjects (List[Subject]): The subjects.
+        """
+        super().__init__(client, subjects)
+        self.from_lesson = from_lesson
         self.queue = []
         self.nb_subjects = 0
         self.build_queue(subjects)
-        self.last_audio_played = None
 
     def build_queue(self, subjects: List[Subject]):
         """Build the queue.
@@ -697,7 +866,7 @@ class ReviewSession:
             f"This session contains {self.nb_subjects} subjects.\n"
         )
 
-        input("Press any key to start the session...")
+        input("Press enter to start the session...")
         """Start the review session."""
         while self.queue:
             question = self.queue[0]
@@ -769,17 +938,20 @@ class ReviewSession:
             if subject.solved:
                 self.nb_subjects -= 1
                 nb_completed_subjects += 1
-                ReviewUpdate(
-                    self.client,
-                    subject.id,
-                    subject.meaning_question.wrong_answer_count,
-                    subject.reading_question.wrong_answer_count
-                    if subject.reading_question
-                    else 0,
-                ).save()
+                if self.from_lesson:
+                    AssignmentUpdate(self.client, subject.id).save()
+                else:
+                    ReviewUpdate(
+                        self.client,
+                        subject.id,
+                        subject.meaning_question.wrong_answer_count,
+                        subject.reading_question.wrong_answer_count
+                        if subject.reading_question
+                        else 0,
+                    ).save()
 
             self.ask_audio(question)
-            input("\nPress a key to continue...")
+            input("\nPress enter to continue...")
 
         print("\nAll done!")
 
@@ -806,7 +978,7 @@ class ReviewSession:
         """Ask the user if they want to hear the audio.
 
         Args:
-            card (Card): The card.
+            question (Question): The question.
         """
         if (
             self.client.options.silent
@@ -822,36 +994,160 @@ class ReviewSession:
             audio.play()
             self.last_audio_played = audio
 
-    def select_audio(self, audios: List[Audio]) -> Audio:
-        """Select the audio to play.
+
+class LessonSession(Session):
+    def start(self):
+        """Start the Lesson session.
+
+        We start by showing the subjects to the user by batch.
+        Once the user is done, we start a review session.
+        We repeat this process until the user is done.
+        """
+        clear_terminal()
+        print(
+            "Lesson session started.\n"
+            "You will first be shown a batch of new subjects.\n"
+            "You will then be asked to review the subjects.\n"
+            "Lesson progress will be submitted to WaniKani "
+            "when answering the questions.\n"
+            "Quitting the session will not affect your progress.\n"
+            "You can quit the session at any time by typing 'ctrl + c'.\n\n"
+        )
+
+        input("Press enter to start the session...")
+
+        batches = chunks(self.subjects, 3)
+
+        for batch in batches:
+            for subject in batch:
+                clear_terminal()
+                self.lesson_interface(subject)
+
+            ReviewSession(self.client, batch, from_lesson=True).start()
+
+            input("\nPress enter to continue...")
+
+    def lesson_interface(self, subject: Subject):
+        """Show the subjects to the user with a nice CLI interface.
 
         Args:
-            audios (List[Audio]): The audios.
+            subject (Subject): The subject.
+        """
+        tab_index = 0
+        while True:
+            clear_terminal()
+            print(f"{subject.characters}\n")
+            tabs = ["composition", "meaning", "reading", "context"]
+            if subject.object == SubjectObject.RADICAL:
+                tabs = ["meaning"]
+            elif subject.object == SubjectObject.KANJI:
+                tabs = ["composition", "meaning", "reading"]
+
+            print(self.beautify_tabs_display(tabs, tab_index))
+            print("\n")
+            print(getattr(self, f"tab_{tabs[tab_index]}")(subject))
+
+            print("\nPress directional keys to navigate the tabs.")
+            key = None
+
+            # Only accept valid keys
+            while key not in [67, 68]:
+                key = ord(getch(use_raw_input=False))
+            if key == 67:  # Right
+                # sys.stdout.write("\n")
+                tab_index += 1
+            elif key == 68:  # Left
+                # sys.stdout.write("\n")
+                tab_index -= 1
+
+            if tab_index < 0:
+                tab_index = 0
+            elif tab_index > len(tabs) - 1:
+                # Go to next subject
+                break
+
+    def tab_composition(self, subject: Subject) -> str:
+        """Show the composition tab.
+
+        Args:
+            subject (Subject): The subject.
 
         Returns:
-            Audio: The audio to play.
+            str: The tab content.
         """
-        audio = None
+        res = ""
+        if subject.component_subject_ids:
+            subjects = self.client._subject_per_ids(subject.component_subject_ids)
+            res = (
+                f"This {subject.object} is made of {len(subjects)} {subjects[0].object}"
+                + ":\n"
+                + "\n".join(
+                    f"- {s.characters}: {s.meanings.primary.value}" for s in subjects
+                )
+            )
 
-        #  In alternate mode select a random voice actor to begin with
-        #  We then alternate with female and male voice actors
-        if self.client.options.voice_mode == VoiceMode.FEMALE or (
-            self.client.options.voice_mode == VoiceMode.ALTERNATE
-            and self.last_audio_played
-            and self.last_audio_played.voice_gender == Gender.MALE
-        ):
-            audio = list(filter(lambda a: a.voice_gender == Gender.FEMALE, audios))[0]
-        elif self.client.options.voice_mode == VoiceMode.MALE or (
-            self.client.options.voice_mode == VoiceMode.ALTERNATE
-            and self.last_audio_played
-            and self.last_audio_played.voice_gender == Gender.FEMALE
-        ):
-            audio = list(filter(lambda a: a.voice_gender == Gender.MALE, audios))[0]
-        else:
-            random_index = random.randrange(len(audios))
-            audio = audios[random_index]
+        return res
 
-        return audio
+    def tab_meaning(self, subject: Subject) -> str:
+        """Show the meaning tab.
+
+        Args:
+            subject (Subject): The subject.
+
+        Returns:
+            str: The tab content.
+        """
+        return subject.meanings.answer_values + "\n\n" + subject.meaning_mnemonic
+
+    def tab_reading(self, subject: Subject) -> str:
+        """Show the reading tab.
+
+        Args:
+            subject (Subject): The subject.
+
+        Returns:
+            str: The tab content.
+        """
+        if subject.audios and not self.client.options.silent:
+            audio = self.select_audio(subject.audios)
+            audio.play()
+            self.last_audio_played = audio
+
+        return subject.readings.answer_values + "\n\n" + subject.reading_mnemonic
+
+    def tab_context(self, subject: Subject) -> str:
+        """Show the context tab.
+
+        Args:
+            subject (Subject): The subject.
+
+        Returns:
+            str: The tab content.
+        """
+        return "\n\n".join([f"{s.ja}\n{s.en}" for s in subject.context_sentences])
+
+    def beautify_tab_name(self, tab_name: str) -> str:
+        return tab_name.replace("_", " ").capitalize()
+
+    def beautify_tabs_display(self, tabs: List[str], tab_index: int) -> str:
+        """Beautify the tabs display.
+
+        Args:
+            tabs (List[str]): The tabs.
+            tab_index (int): The tab index.
+
+        Returns:
+            str: The beautified tabs display.
+        """
+        _tabs = []
+        for i, tab in enumerate(tabs):
+            name = self.beautify_tab_name(tab)
+            if i == tab_index:
+                name = Back.BLUE + Fore.WHITE + name
+
+            _tabs.append(name)
+
+        return (Back.RESET + Fore.RESET + " > ").join(_tabs) + Back.RESET + Fore.RESET
 
 
 def main():
@@ -937,9 +1233,7 @@ def main():
 
     parser.add_argument("--limit", type=range_int_type, default=50, help=text)
 
-    text = (
-        "Display mnemonic when an answer is wrong. (default: False)"
-    )
+    text = "Display mnemonic when an answer is wrong. (default: False)"
 
     parser.add_argument("--mnemonics", action="store_true", default=False, help=text)
 
@@ -968,13 +1262,6 @@ def main():
     # They already have been displayed.
     if res:
         print(res)
-
-
-def handler(signal_received, frame):
-    """Terminate the program gracefully."""
-    clear_terminal()
-    print("Program was terminated by user.\n\n")
-    exit(1)
 
 
 def range_int_type(arg):
