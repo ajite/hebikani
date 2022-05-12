@@ -37,7 +37,7 @@ def test_subjects_creation(mock_http_get):
     """Test the subjects creation."""
     mock_http_get.return_value = get_specific_subjects
     client = Client(API_KEY)
-    subjects = client._subject_per_id([440])
+    subjects = client._subject_per_ids([440])
     assert subjects[0].id == 440
     assert subjects[0].object == SubjectObject.KANJI
 
@@ -65,7 +65,7 @@ def test_ascii_art(mock_request_get):
     mock_request_get.return_value = MockClass
 
     client = Client(API_KEY)
-    subjects = client._subject_per_id([8769])
+    subjects = client._subject_per_ids([8769])
     assert subjects[0].id == 8769
 
     # The card front should be the same as the ascii art
