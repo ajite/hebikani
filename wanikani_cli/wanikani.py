@@ -966,6 +966,20 @@ class ReviewSession(Session):
         """
         prompt = f"{question.subject.object} - {question.question_type}: "
 
+        # Display the number of answers for the question in hard mode.
+        # Some kanji require multiple answers while their vocabulary only need one.
+        # E.g: 谷. The readings for the kanji are: たに、や.
+        # But the vocabulary only needs one answer: たに.
+        if (
+            question.question_type == QuestionType.READING
+            and self.client.options.hard_mode
+        ):
+            nb_answers = len(question.subject.readings.acceptable_answers)
+            prompt = (
+                prompt[:-2]
+                + f" ({nb_answers} {'answer' if nb_answers == 1 else 'answers'}): "
+            )
+
         if question.question_type == QuestionType.MEANING:
             inputed_answer = input(prompt)
         else:
