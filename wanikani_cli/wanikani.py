@@ -978,7 +978,7 @@ class ReviewSession(Session):
             self.ask_audio(question)
             input("\nPress enter to continue...")
 
-        print("\nAll done!")
+        print("\n\nReviews are done!")
 
     def ask_answer(self, question: Question):
         """Ask the user for an answer.
@@ -1055,6 +1055,8 @@ class LessonSession(Session):
 
         input("Press enter to start the session...")
 
+        nb_lessons = len(self.subjects)
+        nb_completed_lessons = 0
         batches = chunks(self.subjects, 3)
 
         for batch in batches:
@@ -1063,8 +1065,11 @@ class LessonSession(Session):
                 self.lesson_interface(subject)
 
             ReviewSession(self.client, batch, from_lesson=True).start()
+            nb_completed_lessons += len(batch)
+            print(f"\nLessons: {nb_completed_lessons}/{nb_lessons}")
 
-            input("\nPress enter to continue...")
+            if nb_completed_lessons < nb_lessons:
+                input("\nPress enter to continue...")
 
     def lesson_interface(self, subject: Subject):
         """Show the subjects to the user with a nice CLI interface.
@@ -1075,7 +1080,7 @@ class LessonSession(Session):
         tab_index = 0
         while True:
             clear_terminal()
-            print(f"{subject.characters}\n")
+            print(f"{subject.object.capitalize()}:\n\n{subject.characters}\n")
             tabs = ["composition", "meaning", "reading", "context"]
             if (
                 subject.object == SubjectObject.VOCABULARY
@@ -1096,9 +1101,9 @@ class LessonSession(Session):
             key = None
 
             # Only accept valid keys
-            while key not in [67, 68]:
+            while key not in [10, 67, 68]:
                 key = ord(getch(use_raw_input=False))
-            if key == 67:  # Right
+            if key == 67 or key == 10:  # Right
                 # sys.stdout.write("\n")
                 tab_index += 1
             elif key == 68:  # Left
