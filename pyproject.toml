@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "wanikani-cli"
-version = "0.1.3"
+version = "0.1.4"
 description = "WaniKani command line interface"
 authors = ["Augustin <ajitekun@gmail.com>"]
 readme = "README.rst"

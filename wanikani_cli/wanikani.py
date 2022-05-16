@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-from wanikani_cli.input import getch
 import os
 import random
 import tempfile
+import threading
 from argparse import ArgumentParser, ArgumentTypeError, RawTextHelpFormatter
 from difflib import get_close_matches
 from io import BytesIO
@@ -16,7 +16,7 @@ from PIL import Image, ImageOps
 from playsound import playsound
 
 from wanikani_cli import __version__
-from wanikani_cli.input import input_kana
+from wanikani_cli.input import getch, input_kana
 from wanikani_cli.typing import (
     AnswerType,
     Gender,
@@ -33,6 +33,9 @@ MAX_NB_SUJECTS = 500
 
 # Ratio when using difflib.get_close_matches()
 RATIO_CLOSE_MATCHES = 0.8
+
+# Cache audio during session to avoid redownloading the same audio
+audio_cache = {}
 
 
 def http_get(endpoint: str, api_key: str):
@@ -101,10 +104,17 @@ def clear_terminal():
     os.system("cls" if os.name == "nt" else "clear")
 
 
+def clear_audio_cache():
+    """Clear the audio cache."""
+    for audio_file in audio_cache.values():
+        audio_file.close()
+
+
 def handler(signal_received, frame):
     """Terminate the program gracefully."""
     clear_terminal()
     print("Program was terminated by user.\n\n")
+    clear_audio_cache()
     exit(1)
 
 
@@ -255,14 +265,22 @@ class Audio(APIObject):
 
         return _gender
 
+    def download(self):
+        """Downloadthe audio."""
+        if self.url not in audio_cache.keys():
+            r = requests.get(self.url)
+            f = tempfile.NamedTemporaryFile(suffix=self.ext)
+            f.write(r.content)
+            f.seek(0)
+            audio_cache[self.url] = f
+
     def play(self):
-        """Download and play the audio."""
-        r = requests.get(self.url)
-        f = tempfile.NamedTemporaryFile(suffix=self.ext)
-        f.write(r.content)
-        f.seek(0)
-        playsound(f.name)
-        f.close()
+        """Play the audio and download it if needed."""
+        if self.url not in audio_cache.keys():
+            self.download()
+
+        f = audio_cache[self.url]
+        threading.Thread(target=playsound, args=(f.name,), daemon=True).start()
 
 
 class Summary(APIObject):
@@ -531,6 +549,7 @@ class Subject(APIObject):
         self._meanings = None
         self._meaning_question = Question(self, QuestionType.MEANING)
         self._reading_question = None
+
         if self.object != SubjectObject.RADICAL:
             self._reading_question = Question(self, QuestionType.READING)
 
@@ -785,9 +804,15 @@ class Session:
         """
         audio = None
 
+        audio_cache_urls = list(
+            set(audio_cache.keys()).intersection(set([a.url for a in audios]))
+        )
+        # use cache
+        if audio_cache_urls:
+            audio = list(filter(lambda a: a.url in audio_cache_urls[0], audios))[0]
         #  In alternate mode select a random voice actor to begin with
         #  We then alternate with female and male voice actors
-        if self.client.options.voice_mode == VoiceMode.FEMALE or (
+        elif self.client.options.voice_mode == VoiceMode.FEMALE or (
             self.client.options.voice_mode == VoiceMode.ALTERNATE
             and self.last_audio_played
             and self.last_audio_played.voice_gender == Gender.MALE
@@ -1052,6 +1077,12 @@ class LessonSession(Session):
             clear_terminal()
             print(f"{subject.characters}\n")
             tabs = ["composition", "meaning", "reading", "context"]
+            if (
+                subject.object == SubjectObject.VOCABULARY
+                and not self.client.options.silent
+            ):
+                # Pre download audio
+                self.select_audio(subject.audios).download()
             if subject.object == SubjectObject.RADICAL:
                 tabs = ["meaning"]
             elif subject.object == SubjectObject.KANJI:
