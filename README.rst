@@ -1,7 +1,7 @@
 WaniKani CLI
 ============
 
-**This works for both reviews and lessons. It is still experimental. Use at your own risk.**
+**This program is not an official WaniKani client. Use at your own risk.**
 
 A command line interface to do your WaniKani lessons and reviews.
 
