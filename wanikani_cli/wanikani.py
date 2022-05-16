@@ -1308,6 +1308,8 @@ def main():
     if res:
         print(res)
 
+    clear_audio_cache()
+
 
 def range_int_type(arg):
     """Type function for argparse - a int within some predefined bounds"""
