@@ -1171,7 +1171,11 @@ class LessonSession(Session):
         Returns:
             str: The tab content.
         """
-        return subject.meanings.answer_values + "\n\n" + subject.meaning_mnemonic
+        return (
+            subject.meanings.answer_values
+            + "\n\n"
+            + wanikani_tag_to_color(subject.meaning_mnemonic)
+        )
 
     def tab_reading(self, subject: Subject) -> str:
         """Show the reading tab.
@@ -1187,7 +1191,11 @@ class LessonSession(Session):
             audio.play()
             self.last_audio_played = audio
 
-        return subject.readings.answer_values + "\n\n" + subject.reading_mnemonic
+        return (
+            subject.readings.answer_values
+            + "\n\n"
+            + wanikani_tag_to_color(subject.reading_mnemonic)
+        )
 
     def tab_context(self, subject: Subject) -> str:
         """Show the context tab.
