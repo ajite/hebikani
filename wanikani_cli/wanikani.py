@@ -11,7 +11,7 @@ from typing import List
 
 import ascii_magic
 import requests
-from colorama import Back, Fore
+from colorama import Back, Fore, Style
 from PIL import Image, ImageOps
 from playsound import playsound
 
@@ -97,6 +97,29 @@ def url_to_ascii(url: str):
 
     ascii_art = ascii_magic.from_image(image, columns=64)
     return ascii_art
+
+
+def wanikani_tag_to_color(text: str) -> str:
+    """Convert a wanikani tag to a color.
+
+    Args:
+        text (str): The text to convert.
+
+    Returns:
+        str: The colorized text.
+    """
+    tag_colors = {
+        "kanji": Back.RED,
+        "vocabulary": Back.MAGENTA,
+        "radical": Back.BLUE,
+        "ja": Back.GREEN,
+        "reading": Back.CYAN,
+        "meaning": Back.CYAN,
+    }
+    for tag, bg_color in tag_colors.items():
+        text = text.replace(f"<{tag}>", Style.BRIGHT + Fore.WHITE + bg_color)
+        text = text.replace(f"</{tag}>", Back.RESET + Fore.RESET + Style.RESET_ALL)
+    return text
 
 
 def clear_terminal():
@@ -776,6 +799,7 @@ class Question:
             _mnemonic = self.subject.reading_mnemonic
         else:
             _mnemonic = self.subject.meaning_mnemonic
+
         return _mnemonic
 
 
@@ -956,7 +980,7 @@ class ReviewSession(Session):
                     )
 
                     if self.client.options.display_mnemonics:
-                        print(f"\nMnemonic: {question.mnemonic}")
+                        print(f"\nMnemonic: {wanikani_tag_to_color(question.mnemonic)}")
                     self.shuffle()
 
             subject = question.subject
@@ -1193,11 +1217,16 @@ class LessonSession(Session):
         for i, tab in enumerate(tabs):
             name = self.beautify_tab_name(tab)
             if i == tab_index:
-                name = Back.BLUE + Fore.WHITE + name
+                name = Style.BRIGHT + Back.BLUE + Fore.WHITE + name
 
             _tabs.append(name)
 
-        return (Back.RESET + Fore.RESET + " > ").join(_tabs) + Back.RESET + Fore.RESET
+        return (
+            (Style.RESET_ALL + Back.RESET + Fore.RESET + " > ").join(_tabs)
+            + Style.RESET_ALL
+            + Back.RESET
+            + Fore.RESET
+        )
 
 
 def main():
