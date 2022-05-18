@@ -1,6 +1,10 @@
+import argparse
+import io
 import os
 from unittest.mock import patch
 
+import pytest
+from colorama import Back, Fore, Style
 from wanikani_cli.typing import (
     AnswerType,
     Gender,
@@ -8,11 +12,25 @@ from wanikani_cli.typing import (
     SubjectObject,
     VoiceMode,
 )
-from wanikani_cli.wanikani import Client, ClientOptions, ReviewSession, Subject
+from wanikani_cli.wanikani import (
+    MAX_NB_SUJECTS,
+    MIN_NB_SUBJECTS,
+    Client,
+    ClientOptions,
+    ReviewSession,
+    Subject,
+    audio_cache,
+    chunks,
+    clear_audio_cache,
+    clear_terminal,
+    range_int_type,
+    wanikani_tag_to_color,
+)
 
 from .data import (
     API_KEY,
     double_reading_subject,
+    get_all_assignments,
     get_specific_subjects,
     get_subject_without_utf_entry,
     get_summary,
@@ -20,10 +38,9 @@ from .data import (
 )
 
 
-@patch("wanikani_cli.wanikani.http_get")
-def test_summary(mock_http_get):
-    """Test the summary."""
-    mock_http_get.return_value = get_summary
+@patch("wanikani_cli.wanikani.api_request", return_value=get_summary)
+def test_client_summary(mock_api_request):
+    """Test the summary we get from the API."""
     client = Client(API_KEY)
     summary = client.summary()
     assert summary.lessons == [25, 26]
@@ -32,14 +49,21 @@ def test_summary(mock_http_get):
     assert summary.nb_reviews == 3
 
 
-@patch("wanikani_cli.wanikani.http_get")
-def test_subjects_creation(mock_http_get):
-    """Test the subjects creation."""
-    mock_http_get.return_value = get_specific_subjects
+@patch("wanikani_cli.wanikani.api_request", return_value=get_specific_subjects)
+def test_client_subject_per_ids(mock_api_request):
+    """Test the retrieving subject per ids."""
     client = Client(API_KEY)
     subjects = client._subject_per_ids([440])
     assert subjects[0].id == 440
     assert subjects[0].object == SubjectObject.KANJI
+
+
+@patch("wanikani_cli.wanikani.api_request", return_value=get_all_assignments)
+def test_client_assignment_id_per_subject_id(mock_api_request):
+    """Test the retrieving assignment per subject id."""
+    client = Client(API_KEY)
+    assignment_id = client._assignment_id_per_subject_id(8761)
+    assert assignment_id == 80463006
 
 
 @patch("requests.get")
@@ -86,8 +110,8 @@ def test_card_audio_creation():
     assert subject.audios[0].ext == ".mp3"
 
 
-@patch("wanikani_cli.wanikani.Audio.play")
 @patch("builtins.input", return_value="y")
+@patch("wanikani_cli.wanikani.Audio.play")
 def test_review_session_audio_mode(audio_play_mock, input_mock):
     """Test the review session audio mode."""
     subject = Subject(vocabulary_subject)
@@ -207,3 +231,103 @@ def test_mnemonics():
         "this vocab word has the same meaning as the kanji it parallels, which "
         "is \u003cvocabulary\u003eone\u003c/vocabulary\u003e."
     )
+
+
+def test_wanikani_tag_to_color():
+    """Test the wanikani tag to color."""
+    text = "This is a <ja>test</ja>."
+    result = (
+        f"This is a {Style.BRIGHT + Fore.WHITE + Back.GREEN}test"
+        f"{Back.RESET + Fore.RESET + Style.RESET_ALL}."
+    )
+    assert wanikani_tag_to_color(text) == result
+
+    text = "This <kanji>is</kanji> a <radical>test</radical>."
+    result = (
+        f"This {Style.BRIGHT + Fore.WHITE + Back.RED}is"
+        f"{Back.RESET + Fore.RESET + Style.RESET_ALL} a "
+        f"{Style.BRIGHT + Fore.WHITE + Back.BLUE}test"
+        f"{Back.RESET + Fore.RESET + Style.RESET_ALL}."
+    )
+
+    assert wanikani_tag_to_color(text) == result
+
+
+def test_chunks():
+    """It should divided array into chuncks
+
+    E.g:
+        chuncks([1, 2, 3, 4, 5, 6, 7], 2)
+        returns: [[1, 2], [3, 4], [5, 6], [7]]
+    """
+    assert list(chunks([1, 2, 3, 4, 5, 6, 7], 2)) == [[1, 2], [3, 4], [5, 6], [7]]
+    assert list(chunks([1, 2, 3, 4, 5, 6], 3)) == [[1, 2, 3], [4, 5, 6]]
+
+
+@patch("os.name", "nt")
+@patch("os.system")
+def test_clear_terminal_windows(os_system):
+    """It should clear the terminal in windows"""
+    clear_terminal()
+    os_system.assert_called_with("cls")
+
+
+@patch("os.name", "posix")
+@patch("os.system")
+def test_clear_terminal_posix(os_system):
+    """It should clear the terminal in linux/mac"""
+    clear_terminal()
+    os_system.assert_called_with("clear")
+
+
+def test_argparse_range_int_type():
+    """Validate the range of an int"""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--limit", type=range_int_type)
+
+    # Test when the value is too low
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--limit", str(MIN_NB_SUBJECTS - 1)])
+
+    # Test when the value is too high
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--limit", str(MAX_NB_SUJECTS + 1)])
+
+    # Test when the value is correct (highest possible value)
+    try:
+        parser.parse_args(["--limit", str(MAX_NB_SUJECTS)])
+    except SystemExit:
+        pytest.fail("It should not raise SystemExit")
+
+    # Test when the value is correct (lowest possible value)
+    try:
+        parser.parse_args(["--limit", str(MIN_NB_SUBJECTS)])
+    except SystemExit:
+        pytest.fail("It should not raise SystemExit")
+
+    # Test with invalid value (float)
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--limit", "1.5"])
+
+    # Test with invalid value (string)
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--limit", "test"])
+
+
+def test_clear_audio_cache():
+    """It should clear the audio cache"""
+    assert len(audio_cache) == 0
+
+    # Create some fake files. It does not need to be a mp3 file.
+    f = io.BytesIO()
+    f.write(b"test")
+    audio_cache["test"] = f
+    assert len(audio_cache) == 1
+
+    # File should be opened
+    assert f.closed is False
+
+    clear_audio_cache()
+
+    # File should be closed
+    assert f.closed is True

@@ -23,9 +23,8 @@ from wanikani_cli.typing import (
     QuestionType,
     SubjectObject,
     VoiceMode,
+    HTTPMethod,
 )
-
-__all__ = ["Client", "ClientOptions", "Subject", "ReviewSession"]
 
 API_URL = "https://api.wanikani.com/v2/"
 MIN_NB_SUBJECTS = 1
@@ -38,44 +37,30 @@ RATIO_CLOSE_MATCHES = 0.8
 audio_cache = {}
 
 
-def http_get(endpoint: str, api_key: str):
-    """Make a GET request to the API.
+def api_request(method: HTTPMethod, endpoint: str, api_key: str, json=None) -> dict:
+    """Make an API request with correct headers.
 
     Args:
+        method (HTTPMethod): The HTTP method to use.
         endpoint (str): The endpoint to make the request to.
         api_key (str): The API key to use.
+        json (dict): The data to send.
+
+    Returns:
+        dict: The response from the API.
+
+    Raises:
+        ValueError: If the method is not a valid HTTP method.
     """
     url = API_URL + endpoint
     headers = {"Authorization": f"Bearer {api_key}"}
-    resp = requests.get(url, headers=headers)
-    return resp.json()
-
-
-def http_post(endpoint: str, api_key: str, data: dict):
-    """Make a POST request to the API.
-
-    Args:
-        endpoint (str): The endpoint to make the request to.
-        api_key (str): The API key to use.
-        data (dict): The data to send.
-    """
-    url = API_URL + endpoint
-    headers = {"Authorization": f"Bearer {api_key}"}
-    resp = requests.post(url, headers=headers, json=data)
-    return resp.json()
-
-
-def http_put(endpoint: str, api_key: str, data: dict):
-    """Make a PUT request to the API.
-
-    Args:
-        endpoint (str): The endpoint to make the request to.
-        api_key (str): The API key to use.
-        data (dict): The data to send.
-    """
-    url = API_URL + endpoint
-    headers = {"Authorization": f"Bearer {api_key}"}
-    resp = requests.put(url, headers=headers, json=data)
+    if method == HTTPMethod.GET:
+        resp = requests.get(url, headers=headers)
+    elif method == HTTPMethod.POST or method == HTTPMethod.PUT:
+        json = json or {}  # In case json is None
+        resp = getattr(requests, method.lower())(url, headers=headers, json=json)
+    else:
+        raise ValueError("Invalid HTTP method")
     return resp.json()
 
 
@@ -142,7 +127,12 @@ def handler(signal_received, frame):
 
 
 def chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
+    """Yield successive n-sized chunks from lst.
+
+    Args:
+        lst (List[T]): The list to chunk.
+        n (int): The size of each chunk.4
+    """
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
 
@@ -201,7 +191,7 @@ class Client:
 
     def summary(self):
         """Get a summary of the user's current progress."""
-        data = http_get("summary", self.api_key)
+        data = api_request(HTTPMethod.GET, "summary", self.api_key)
         return Summary(data)
 
     def reviews(self):
@@ -230,7 +220,7 @@ class Client:
         missing_ids = list(set(subject_ids) - set(self._subject_cache.keys()))
         if missing_ids:
             ids = ",".join(str(i) for i in missing_ids)
-            data = http_get(f"subjects?ids={ids}", self.api_key)
+            data = api_request(HTTPMethod.GET, f"subjects?ids={ids}", self.api_key)
 
             for data in data["data"]:
                 subject = Subject(data)
@@ -238,17 +228,22 @@ class Client:
 
         return [self._subject_cache[i] for i in subject_ids]
 
-    def _assignment_per_subject_id(self, subject_id: int):
+    def _assignment_id_per_subject_id(self, subject_id: int) -> int:
         """Get assignments by subject ID.
 
         Args:
             subject_id (int): The subject ID to get assignment for.
+
+        Returns:
+            int: The assignment ID.
         """
         assignment_id = None
-        data = http_get(f"assignments?subject_ids={str(subject_id)}", self.api_key)
+        data = api_request(
+            HTTPMethod.GET, f"assignments?subject_ids={str(subject_id)}", self.api_key
+        )
         if data["data"]:
             assignment_id = data["data"][0]["id"]
-        return assignment_id
+        return int(assignment_id)
 
 
 class APIObject:
@@ -530,7 +525,7 @@ class ReviewUpdate:
             }
         }
         if self.client.options.dry_run is False:
-            http_post("reviews", self.client.api_key, data)
+            api_request(HTTPMethod.POST, "reviews", self.client.api_key, data)
 
 
 class AssignmentUpdate:
@@ -550,13 +545,15 @@ class AssignmentUpdate:
         """
         self.client = client
         self.subject_id = subject_id
-        self.assignment_id = self.client._assignment_per_subject_id(subject_id)
+        self.assignment_id = self.client._assignment_id_per_subject_id(subject_id)
 
     def save(self):
         """Send the data to on WaniKani."""
         if self.client.options.dry_run is False:
-            http_put(
-                f"assignments/{str(self.assignment_id)}/start", self.client.api_key, {}
+            api_request(
+                HTTPMethod.PUT,
+                f"assignments/{str(self.assignment_id)}/start",
+                self.client.api_key,
             )
 
 
@@ -1353,8 +1350,18 @@ def main():
     clear_audio_cache()
 
 
-def range_int_type(arg):
-    """Type function for argparse - a int within some predefined bounds"""
+def range_int_type(arg: str) -> int:
+    """Type function for argparse - a int within some predefined bounds
+
+    Args:
+        arg (str): The value of the argument.
+
+    Returns:
+        int: The parsed value.
+
+    Raises:
+        argparse.ArgumentTypeError: If the value is not within the bounds.
+    """
     try:
         arg = int(arg)
     except ValueError:

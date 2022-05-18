@@ -1,6 +1,14 @@
 """Define all the enums used in the CLI."""
 
 
+class HTTPMethod(object):
+    """Define the HTTP methods."""
+
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+
+
 class AnswerType(enumerate):
     """Enum for the answer type."""
 

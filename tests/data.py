@@ -292,3 +292,36 @@ double_reading_subject = {
         "spaced_repetition_system_id": 1,
     },
 }
+
+
+get_all_assignments = {
+    "object": "collection",
+    "url": "https://api.wanikani.com/v2/assignments",
+    "pages": {
+        "per_page": 500,
+        "next_url": "https://api.wanikani.com/v2/assignments?page_after_id=80469434",
+        "previous_url": None,
+    },
+    "total_count": 1600,
+    "data_updated_at": "2017-11-29T19:37:03.571377Z",
+    "data": [
+        {
+            "id": 80463006,
+            "object": "assignment",
+            "url": "https://api.wanikani.com/v2/assignments/80463006",
+            "data_updated_at": "2017-10-30T01:51:10.438432Z",
+            "data": {
+                "created_at": "2017-09-05T23:38:10.695133Z",
+                "subject_id": 8761,
+                "subject_type": "radical",
+                "srs_stage": 8,
+                "unlocked_at": "2017-09-05T23:38:10.695133Z",
+                "started_at": "2017-09-05T23:41:28.980679Z",
+                "passed_at": "2017-09-07T17:14:14.491889Z",
+                "burned_at": None,
+                "available_at": "2018-02-27T00:00:00.000000Z",
+                "resurrected_at": None,
+            },
+        }
+    ],
+}
