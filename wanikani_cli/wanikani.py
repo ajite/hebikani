@@ -1,4 +1,14 @@
 #!/usr/bin/env python
+"""CLI for the wanikani API.
+
+Usage:
+    >>> wanikani-cli --help
+
+    or in python
+
+    >>> from wanikani_cli import wanikani
+    >>> client = wanikani.Client(API_KEY)
+"""
 import os
 import random
 import tempfile
@@ -61,6 +71,8 @@ def api_request(method: HTTPMethod, endpoint: str, api_key: str, json=None) -> d
         resp = getattr(requests, method.lower())(url, headers=headers, json=json)
     else:
         raise ValueError("Invalid HTTP method")
+    if resp.status_code == 401:
+        raise ValueError("Invalid API Key")
     return resp.json()
 
 
@@ -1341,11 +1353,14 @@ def main():
     client = Client(args.api_key, options=client_options)
 
     signal(SIGINT, handler)  # Register the SIGINT handler.
-    res = getattr(client, args.mode)()
-    # Do not display command that do not return a response.
-    # They already have been displayed.
-    if res:
-        print(res)
+    try:
+        res = getattr(client, args.mode)()
+        # Do not display command that do not return a response.
+        # They already have been displayed.
+        if res:
+            print(res)
+    except Exception as e:
+        print(e)
 
     clear_audio_cache()
 

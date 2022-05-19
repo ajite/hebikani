@@ -8,6 +8,7 @@ from colorama import Back, Fore, Style
 from wanikani_cli.typing import (
     AnswerType,
     Gender,
+    HTTPMethod,
     QuestionType,
     SubjectObject,
     VoiceMode,
@@ -19,6 +20,7 @@ from wanikani_cli.wanikani import (
     ClientOptions,
     ReviewSession,
     Subject,
+    api_request,
     audio_cache,
     chunks,
     clear_audio_cache,
@@ -36,6 +38,31 @@ from .data import (
     get_summary,
     vocabulary_subject,
 )
+
+
+@patch("requests.put")
+@patch("requests.post")
+@patch("requests.get")
+def test_wrong_api_key(mock_requests_get, mock_requests_post, mock_requests_put):
+    """Test the wrong api key."""
+    mock_requests_get.return_value.status_code = 401
+    mock_requests_post.return_value.status_code = 401
+    mock_requests_put.return_value.status_code = 401
+
+    with pytest.raises(ValueError):
+        api_request(HTTPMethod.GET, "/summary", "wrong_api_key")
+
+    with pytest.raises(ValueError):
+        api_request(HTTPMethod.POST, "/summary", "wrong_api_key", {})
+
+    with pytest.raises(ValueError):
+        api_request(HTTPMethod.PUT, "/summary", "wrong_api_key", {})
+
+
+def test_api_request_invalid_http_method():
+    """Test the invalid http method."""
+    with pytest.raises(ValueError):
+        api_request("TEST", "/summary", API_KEY)
 
 
 @patch("wanikani_cli.wanikani.api_request", return_value=get_summary)
@@ -56,6 +83,17 @@ def test_client_subject_per_ids(mock_api_request):
     subjects = client._subject_per_ids([440])
     assert subjects[0].id == 440
     assert subjects[0].object == SubjectObject.KANJI
+    assert subjects[0].context_sentences == []
+    assert subjects[0].component_subject_ids == [1]
+
+
+def test_vocabulary_subject():
+    subject = Subject(vocabulary_subject)
+    assert subject.object == "vocabulary"
+    assert subject.component_subject_ids == [440]
+    assert len(subject.context_sentences) == 3
+    assert subject.context_sentences[0].en == "Let’s meet up once."
+    assert subject.context_sentences[0].ja == "一ど、あいましょう。"
 
 
 @patch("wanikani_cli.wanikani.api_request", return_value=get_all_assignments)
@@ -85,6 +123,7 @@ def test_ascii_art(mock_request_get):
             return get_subject_without_utf_entry
 
         content = img_f.read()
+        status_code = 200
 
     mock_request_get.return_value = MockClass
 
@@ -184,6 +223,26 @@ def test_card_answer():
     assert meanings.solve("skillful") == AnswerType.CORRECT
     assert meanings.solve("skilfull") == AnswerType.A_BIT_OFF
     assert meanings.solve("unskilfull") == AnswerType.INCORRECT
+
+
+def test_card_is_solved():
+    """Test the card is solved."""
+    subject = Subject(vocabulary_subject)
+    assert subject.solved is False
+
+    subject.meaning_question.solve("one")
+    subject.reading_question.solve("いち")
+
+    assert subject.solved is True
+
+    subject = Subject(vocabulary_subject)
+
+    assert subject.solved is False
+
+    subject.meaning_question.solve("hello")
+    subject.reading_question.solve("いち")
+
+    assert subject.solved is False
 
 
 def test_hard_mode():
