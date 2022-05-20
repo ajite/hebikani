@@ -34,3 +34,13 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 wanikani-cli = 'wanikani_cli.wanikani:main'
+
+[tool.semantic_release]
+version_variable = [
+    "wanikani_cli/__init__.py:__version__",
+    "pyproject.toml:version"
+]
+branch = "main"
+upload_to_pypi = true
+upload_to_release = true
+build_command = "pip install poetry && poetry build"
