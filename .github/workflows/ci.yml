@@ -55,7 +55,7 @@ jobs:
   Badge:
     needs: Quality
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Create Coverage Badge
         uses: schneegans/dynamic-badges-action@v1.1.0
