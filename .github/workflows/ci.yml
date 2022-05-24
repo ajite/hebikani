@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  Quality:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.9]
+        poetry-version: [1.1.13]
+        os: [macos-latest]
+    runs-on: ${{ matrix.os }}
+    outputs:
+      coverage_percent: ${{ steps.coverage.outputs.coverage_percent }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install Poetry
+      uses: abatilo/actions-poetry@v2.0.0
+      with:
+        poetry-version: ${{ matrix.poetry-version }}
+    - name: Cache Poetry virtualenv
+      uses: actions/cache@v1
+      id: cache
+      with:
+        path: ~/.virtualenvs
+        key: poetry-${{ hashFiles('poetry.lock') }}
+        restore-keys: |
+          poetry-${{ hashFiles('poetry.lock') }}
+    - name: Set Poetry config
+      run: |
+        poetry config virtualenvs.in-project false
+        poetry config virtualenvs.path ~/.virtualenvs
+    - name: Install Dependencies
+      run: poetry install
+      if: steps.cache.outputs.cache-hit != 'true'
+    - name: Lint with flake8
+      run: |
+        python -m poetry run flake8 . --count --show-source --statistics
+    - name: Test with pytest
+      id: coverage
+      run: |
+        python -m poetry run coverage run -m pytest
+        COVERAGE=$(poetry run coverage report | awk '$1 == "TOTAL" {print $NF+0}')
+        echo "::set-output name=coverage_percent::$COVERAGE"
+
+  Badge:
+    needs: Quality
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - name: Create Coverage Badge
+        uses: schneegans/dynamic-badges-action@v1.1.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: c90a126b4e926b94c07a36ac78e9a9ad
+          filename: wanikani_cli_coverage.json
+          label: coverage
+          message: ${{ needs.quality.outputs.coverage_percent }}
+          namedLogo: pytest
+          color: blue
+          logoColor: lightblue
+
+  Release:
+    needs: Quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, 'chore(release):')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Semantic Release
+        run: |
+          pip install python-semantic-release
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          semantic-release publish
