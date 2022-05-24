@@ -1,4 +1,4 @@
-name: WaniKani CLI Tests
+name: CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  quality:
+  Quality:
     strategy:
       fail-fast: false
       matrix:
@@ -52,8 +52,8 @@ jobs:
         COVERAGE=$(poetry run coverage report | awk '$1 == "TOTAL" {print $NF+0}')
         echo "::set-output name=coverage_percent::$COVERAGE"
 
-  badges:
-    needs: quality
+  Badge:
+    needs: Quality
     runs-on: ubuntu-latest
     steps:
       - name: Create Coverage Badge
@@ -68,9 +68,9 @@ jobs:
           color: blue
           logoColor: lightblue
 
-  release:
-    needs: quality
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && !contains(github.event.head_commit.message, 'chore(release):')
+  Release:
+    needs: Quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, 'chore(release):')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-python@v2
