@@ -480,13 +480,19 @@ class AnswerManager:
             # Only works for reading questions.
             answer_type = AnswerType.CORRECT
             answers = [i.strip() for i in inputed_answer.split(",")]
-            if set(answers) == set(
-                [a.value for a in self.acceptable_answers]
-            ):
+            if set(answers) == set([a.value for a in self.acceptable_answers]):
                 answer_type = AnswerType.CORRECT
-            elif len(self.acceptable_answers) == len(answers) and\
-                    len(set(answers) - (set([a.value for a
-                        in self.acceptable_answers]) | set([a.value for a in self.unacceptable_answers]))) == 0:
+            elif (
+                len(self.acceptable_answers) == len(answers)
+                and len(
+                    set(answers)
+                    - (
+                        set([a.value for a in self.acceptable_answers])
+                        | set([a.value for a in self.unacceptable_answers])
+                    )
+                )
+                == 0
+            ):
                 answer_type = AnswerType.INEXACT
             else:
                 answer_type = AnswerType.INCORRECT
