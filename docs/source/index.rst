@@ -12,6 +12,9 @@ This app is still in development, so please report any bugs or feature requests 
 
 .. _GitHub repository: https://github.com/ajite/wanikani-cli
 
+.. figure:: _static/demo.gif
+   :alt: CLI demo gif
+
 
 .. toctree::
    :maxdepth: 2
