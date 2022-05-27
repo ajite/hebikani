@@ -1,7 +1,7 @@
 .. image:: https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/ajite/c90a126b4e926b94c07a36ac78e9a9ad/raw/wanikani_cli_coverage.json
 	:target: https://github.com/ajite/wanikani-cli
 	:alt: Coverage
-	
+
 .. image:: https://readthedocs.org/projects/wanikani-cli/badge/?version=latest
 	:target: https://wanikani-cli.readthedocs.io/en/latest/?badge=latest
 	:alt: Documentation Status
@@ -12,6 +12,9 @@ WaniKani CLI
 **This program is not an official WaniKani client. Use at your own risk.**
 
 A command line interface to do your WaniKani lessons and reviews.
+
+.. figure:: docs/source/_static/demo.gif
+   :alt: CLI demo gif
 
 INSTALL
 -------
