@@ -266,12 +266,9 @@ def test_hard_mode():
     assert readings.solve(" はははは , なに", True) == AnswerType.INEXACT
     assert readings.solve("なん , はははは , なに", True) == AnswerType.INCORRECT
 
-
-
     subject = Subject(get_specific_subjects["data"][0])
     readings = subject.readings
     meanings = subject.meanings
-
 
     assert len(readings.acceptable_answers) == 1
     assert readings.solve("いち", True) == AnswerType.CORRECT
