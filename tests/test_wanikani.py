@@ -251,7 +251,7 @@ def test_hard_mode():
     readings = subject.readings
     meanings = subject.meanings
 
-    assert len(readings.answers) == 2
+    assert len(readings.answers) == 3
     assert len(readings.acceptable_answers) == 2
     assert len(meanings.answers) == 1
 
@@ -262,6 +262,18 @@ def test_hard_mode():
     assert readings.solve("なん,なに", True) == AnswerType.CORRECT
     assert readings.solve("なん , なに ", True) == AnswerType.CORRECT
     assert readings.solve("なんあ , なに ", True) == AnswerType.INCORRECT
+    assert readings.solve("なん , はははは ", True) == AnswerType.INEXACT
+    assert readings.solve(" はははは , なに", True) == AnswerType.INEXACT
+    assert readings.solve("なん , はははは , なに", True) == AnswerType.INCORRECT
+
+    subject = Subject(get_specific_subjects["data"][0])
+    readings = subject.readings
+    meanings = subject.meanings
+
+    assert len(readings.acceptable_answers) == 1
+    assert readings.solve("いち", True) == AnswerType.CORRECT
+    assert readings.solve("ひと", True) == AnswerType.INEXACT
+    assert readings.solve("かず", True) == AnswerType.INEXACT
 
 
 def test_review_session():

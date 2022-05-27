@@ -73,6 +73,7 @@ def api_request(method: HTTPMethod, endpoint: str, api_key: str, json=None) -> d
         raise ValueError("Invalid HTTP method")
     if resp.status_code == 401:
         raise ValueError("Invalid API Key")
+
     return resp.json()
 
 
@@ -478,10 +479,21 @@ class AnswerManager:
             # In hard mode check that all the answers are correct.
             # Only works for reading questions.
             answer_type = AnswerType.CORRECT
-            if set([i.strip() for i in inputed_answer.split(",")]) == set(
-                [a.value for a in self.acceptable_answers]
-            ):
+            answers = [i.strip() for i in inputed_answer.split(",")]
+            if set(answers) == set([a.value for a in self.acceptable_answers]):
                 answer_type = AnswerType.CORRECT
+            elif (
+                len(self.acceptable_answers) == len(answers)
+                and len(
+                    set(answers)
+                    - (
+                        set([a.value for a in self.acceptable_answers])
+                        | set([a.value for a in self.unacceptable_answers])
+                    )
+                )
+                == 0
+            ):
+                answer_type = AnswerType.INEXACT
             else:
                 answer_type = AnswerType.INCORRECT
         elif inputed_answer in [a.value for a in self.acceptable_answers]:

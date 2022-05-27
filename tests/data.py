@@ -286,6 +286,12 @@ double_reading_subject = {
         "readings": [
             {"primary": True, "reading": "なに", "accepted_answer": True},
             {"primary": False, "reading": "なん", "accepted_answer": True},
+            {
+                "type": "kunyomi",
+                "primary": False,
+                "accepted_answer": False,
+                "reading": "はははは",
+            },
         ],
         "reading_mnemonic": "When a vocab word is all alone and has no okurigana (hiragana attached to kanji) connected to it, it usually uses the kun'yomi reading. Numbers are an exception, however. When a number is all alone, with no kanji or okurigana, it is going to be the on'yomi reading, which you learned with the kanji.  Just remember this exception for alone numbers and you'll be able to read future number-related vocab to come.",
         "slug": "一",

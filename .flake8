@@ -6,3 +6,6 @@ extend-ignore =
 per-file-ignores =
     # line too long for mock data
     tests/data.py: E501
+exclude =
+    .venv
+    build
