@@ -1,10 +1,10 @@
-"""Test data from hebikani API."""
+"""Test data from WaniKani API."""
 
 API_KEY = "API_KEY"
 
 get_summary = {
     "object": "report",
-    "url": "https://api.hebikani.com/v2/summary",
+    "url": "https://api.wanikani.com/v2/summary",
     "data_updated_at": "2018-04-11T21:00:00.000000Z",
     "data": {
         "lessons": [
@@ -23,10 +23,10 @@ get_summary = {
 
 get_specific_subjects = {
     "object": "collection",
-    "url": "https://api.hebikani.com/v2/subjects?types=kanji",
+    "url": "https://api.wanikani.com/v2/subjects?types=kanji",
     "pages": {
         "per_page": 1000,
-        "next_url": "https://api.hebikani.com/v2/subjects?page_after_id=1439\u0026types=kanji",
+        "next_url": "https://api.wanikani.com/v2/subjects?page_after_id=1439\u0026types=kanji",
         "previous_url": None,
     },
     "total_count": 2027,
@@ -35,14 +35,14 @@ get_specific_subjects = {
         {
             "id": 440,
             "object": "kanji",
-            "url": "https://api.hebikani.com/v2/subjects/440",
+            "url": "https://api.wanikani.com/v2/subjects/440",
             "data_updated_at": "2018-03-29T23:14:30.805034Z",
             "data": {
                 "created_at": "2012-02-27T19:55:19.000000Z",
                 "level": 1,
                 "slug": "一",
                 "hidden_at": None,
-                "document_url": "https://www.hebikani.com/kanji/%E4%B8%80",
+                "document_url": "https://www.wanikani.com/kanji/%E4%B8%80",
                 "characters": "一",
                 "meanings": [
                     {"meaning": "One", "primary": True, "accepted_answer": True}
@@ -83,7 +83,7 @@ get_specific_subjects = {
 
 get_subject_without_utf_entry = {
     "object": "collection",
-    "url": "https://api.hebikani.com/v2/subjects?ids=8769",
+    "url": "https://api.wanikani.com/v2/subjects?ids=8769",
     "pages": {"per_page": 1000, "next_url": None, "previous_url": None},
     "total_count": 1,
     "data_updated_at": "2022-05-02T19:28:05.752635Z",
@@ -91,14 +91,14 @@ get_subject_without_utf_entry = {
         {
             "id": 8769,
             "object": "radical",
-            "url": "https://api.hebikani.com/v2/subjects/8769",
+            "url": "https://api.wanikani.com/v2/subjects/8769",
             "data_updated_at": "2021-10-11T22:20:15.393206Z",
             "data": {
                 "created_at": "2012-03-03T04:09:15.000000Z",
                 "level": 5,
                 "slug": "viking",
                 "hidden_at": None,
-                "document_url": "https://www.hebikani.com/radicals/fake_meaning",
+                "document_url": "https://www.wanikani.com/radicals/fake_meaning",
                 "characters": None,
                 "character_images": [
                     {
@@ -197,7 +197,7 @@ get_subject_without_utf_entry = {
 vocabulary_subject = {
     "id": 2467,
     "object": "vocabulary",
-    "url": "https://api.hebikani.com/v2/subjects/2467",
+    "url": "https://api.wanikani.com/v2/subjects/2467",
     "data_updated_at": "2018-12-12T23:09:52.234049Z",
     "data": {
         "auxiliary_meanings": [{"type": "whitelist", "meaning": "1"}],
@@ -209,7 +209,7 @@ vocabulary_subject = {
             {"en": "I’m the weakest man in the world.", "ja": "ぼくはせかいで一ばんよわい。"},
         ],
         "created_at": "2012-02-28T08:04:47.000000Z",
-        "document_url": "https://www.hebikani.com/vocabulary/%E4%B8%80",
+        "document_url": "https://www.wanikani.com/vocabulary/%E4%B8%80",
         "hidden_at": None,
         "lesson_position": 44,
         "level": 1,
@@ -218,7 +218,7 @@ vocabulary_subject = {
         "parts_of_speech": ["numeral"],
         "pronunciation_audios": [
             {
-                "url": "https://cdn.hebikani.com/audios/3020-subject-2467.mp3?1547862356",
+                "url": "https://cdn.wanikani.com/audios/3020-subject-2467.mp3?1547862356",
                 "metadata": {
                     "gender": "male",
                     "source_id": 2711,
@@ -230,7 +230,7 @@ vocabulary_subject = {
                 "content_type": "audio/mpeg",
             },
             {
-                "url": "https://cdn.hebikani.com/audios/3018-subject-2467.ogg?1547862356",
+                "url": "https://cdn.wanikani.com/audios/3018-subject-2467.ogg?1547862356",
                 "metadata": {
                     "gender": "male",
                     "source_id": 2711,
@@ -242,7 +242,7 @@ vocabulary_subject = {
                 "content_type": "audio/ogg",
             },
             {
-                "url": "https://cdn.hebikani.com/audios/3020-subject-2467.mp3?1547862356",
+                "url": "https://cdn.wanikani.com/audios/3020-subject-2467.mp3?1547862356",
                 "metadata": {
                     "gender": "female",
                     "source_id": 2711,
@@ -264,7 +264,7 @@ vocabulary_subject = {
 double_reading_subject = {
     "id": 100,
     "object": "kanji",
-    "url": "https://api.hebikani.com/v2/subjects/100",
+    "url": "https://api.wanikani.com/v2/subjects/100",
     "data_updated_at": "2018-12-12T23:09:52.234049Z",
     "data": {
         "auxiliary_meanings": [{"type": "whitelist", "meaning": "1"}],
@@ -276,7 +276,7 @@ double_reading_subject = {
             {"en": "I’m the weakest man in the world.", "ja": "ぼくはせかいで一ばんよわい。"},
         ],
         "created_at": "2012-02-28T08:04:47.000000Z",
-        "document_url": "https://www.hebikani.com/vocabulary/%E4%B8%80",
+        "document_url": "https://www.wanikani.com/vocabulary/%E4%B8%80",
         "hidden_at": None,
         "lesson_position": 44,
         "level": 1,
@@ -302,10 +302,10 @@ double_reading_subject = {
 
 get_all_assignments = {
     "object": "collection",
-    "url": "https://api.hebikani.com/v2/assignments",
+    "url": "https://api.wanikani.com/v2/assignments",
     "pages": {
         "per_page": 500,
-        "next_url": "https://api.hebikani.com/v2/assignments?page_after_id=80469434",
+        "next_url": "https://api.wanikani.com/v2/assignments?page_after_id=80469434",
         "previous_url": None,
     },
     "total_count": 1600,
@@ -314,7 +314,7 @@ get_all_assignments = {
         {
             "id": 80463006,
             "object": "assignment",
-            "url": "https://api.hebikani.com/v2/assignments/80463006",
+            "url": "https://api.wanikani.com/v2/assignments/80463006",
             "data_updated_at": "2017-10-30T01:51:10.438432Z",
             "data": {
                 "created_at": "2017-09-05T23:38:10.695133Z",

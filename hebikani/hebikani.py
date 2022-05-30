@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""CLI for the hebikani API.
+"""CLI for the WaniKani API.
 
 Usage:
     >>> hebikani --help

@@ -26,7 +26,7 @@ from hebikani.hebikani import (
     clear_audio_cache,
     clear_terminal,
     range_int_type,
-    hebikani_tag_to_color,
+    wanikani_tag_to_color,
 )
 
 from .data import (
@@ -109,7 +109,7 @@ def test_ascii_art(mock_request_get):
     """Check if the ASCII art is correctly displayed."""
     """Test the ascii art creation when no utf character."""
 
-    # 32x32 png image sample from hebikani API
+    # 32x32 png image sample from WaniKani API
     img_f = open(os.path.join(os.path.dirname(__file__), "assets/no_utf.png"), "rb")
 
     # the image in ascii the desired ASCII format
@@ -144,7 +144,7 @@ def test_card_audio_creation():
     assert len(subject.audios) == 2
     assert (
         subject.audios[0].url
-        == "https://cdn.hebikani.com/audios/3020-subject-2467.mp3?1547862356"
+        == "https://cdn.wanikani.com/audios/3020-subject-2467.mp3?1547862356"
     )  # noqa: E501
     assert subject.audios[0].ext == ".mp3"
 
@@ -304,14 +304,14 @@ def test_mnemonics():
     )
 
 
-def test_hebikani_tag_to_color():
-    """Test the hebikani tag to color."""
+def test_wanikani_tag_to_color():
+    """Test the WaniKani tag to color."""
     text = "This is a <ja>test</ja>."
     result = (
         f"This is a {Style.BRIGHT + Fore.WHITE + Back.GREEN}test"
         f"{Back.RESET + Fore.RESET + Style.RESET_ALL}."
     )
-    assert hebikani_tag_to_color(text) == result
+    assert wanikani_tag_to_color(text) == result
 
     text = "This <kanji>is</kanji> a <radical>test</radical>."
     result = (
@@ -321,7 +321,7 @@ def test_hebikani_tag_to_color():
         f"{Back.RESET + Fore.RESET + Style.RESET_ALL}."
     )
 
-    assert hebikani_tag_to_color(text) == result
+    assert wanikani_tag_to_color(text) == result
 
 
 def test_chunks():
