@@ -1,12 +1,12 @@
-.. image:: https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/ajite/c90a126b4e926b94c07a36ac78e9a9ad/raw/wanikani_cli_coverage.json
-	:target: https://github.com/ajite/wanikani-cli
+.. image:: https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/ajite/c90a126b4e926b94c07a36ac78e9a9ad/raw/hebikani_coverage.json
+	:target: https://github.com/ajite/hebikani
 	:alt: Coverage
 
-.. image:: https://readthedocs.org/projects/wanikani-cli/badge/?version=latest
-	:target: https://wanikani-cli.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/hebikani/badge/?version=latest
+	:target: https://hebikani.readthedocs.io/en/latest/?badge=latest
 	:alt: Documentation Status
 
-WaniKani CLI
+HebiKani
 ============
 
 **This program is not an official WaniKani client. Use at your own risk.**
@@ -21,9 +21,9 @@ INSTALL
 
 .. code-block:: bash
 
-    pip install wanikani-cli
+    pip install hebikani
 
-If you are missing libraries check the  `documentation <https://wanikani-cli.readthedocs.io/en/latest/install.html>`_
+If you are missing libraries check the  `documentation <https://hebikani.readthedocs.io/en/latest/install.html>`_
 
 RUN
 ---
@@ -32,25 +32,25 @@ Check the help:
 
 .. code-block:: bash
 
-    wanikani-cli --help
+    hebikani --help
 
 To display your review summary:
 
 .. code-block:: bash
 
-    wanikani-cli summary
+    hebikani summary
 
 To start a review session:
 
 .. code-block:: bash
 
-    wanikani-cli reviews
+    hebikani reviews
 
 To start a review session in hard mode with audio and a limited number of reviews:
 
 .. code-block:: bash
 
-    wanikani-cli reviews --hard --autoplay --limit 10
+    hebikani reviews --hard --autoplay --limit 10
 
 DEVELOPMENT
 -----------

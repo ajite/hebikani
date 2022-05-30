@@ -9,7 +9,7 @@ This program does not support windows system.
 
 .. code-block:: bash
 
-    pip install wanikani-cli
+    pip install hebikani
 
 **Note**: You will need the dependencies described below to run this program.
 
@@ -28,7 +28,7 @@ Please ensure that you have commandline-tools from xcode installed
 
 We need it for:
 
-* `pyobjc`_ is required to play audio.
+* `pyobjc`_ (required to play audio).
 
 .. _pyobjc: https://pypi.org/project/pyobjc/
 
@@ -43,7 +43,7 @@ You will need to install manually run:
 
 We need it for:
 
-* `PyGObject`_ is required to play audio.
+* `PyGObject`_ (required to play audio).
 
 .. _PyGObject: https://pypi.org/project/pygobject/
 
@@ -57,7 +57,7 @@ This project uses `Poetry <https://python-poetry.org/docs/>`_.
 
     poetry install
     poetry shell
-    wanikani-cli --help
+    hebikani --help
 
 If you do not want to use poetry you can use the `requirements.txt` file.
 
