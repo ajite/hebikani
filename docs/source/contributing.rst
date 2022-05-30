@@ -7,9 +7,9 @@ Setting up your own fork of this repo.
 --------------------------------------
 
 * On github interface click on Fork button.
-* Clone your fork of this repo. ``git clone git@github.com:YOUR_GIT_USERNAME/wanikani-cli.git``
-* Enter the directory ``cd wanikani-cli``
-* Add upstream repo ``git remote add upstream https://github.com/ajite/wanikani-cli``
+* Clone your fork of this repo. ``git clone git@github.com:YOUR_GIT_USERNAME/hebikani.git``
+* Enter the directory ``cd hebikani``
+* Add upstream repo ``git remote add upstream https://github.com/ajite/hebikani``
 
 Setting up your own virtual environment
 ---------------------------------------

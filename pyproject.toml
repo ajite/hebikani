@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "wanikani-cli"
+name = "hebikani"
 version = "0.1.10"
 description = "WaniKani command line interface"
 authors = ["Augustin <ajitekun@gmail.com>"]
 readme = "README.rst"
 license = "MIT"
-homepage = "https://github.com/ajite/wanikani-cli"
-repository = "https://github.com/ajite/wanikani-cli"
+homepage = "https://github.com/ajite/hebikani"
+repository = "https://github.com/ajite/hebikani"
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -33,11 +33,11 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-wanikani-cli = 'wanikani_cli.wanikani:main'
+hebikani = 'hebikani.hebikani:main'
 
 [tool.semantic_release]
 version_variable = [
-    "wanikani_cli/__init__.py:__version__",
+    "hebikani/__init__.py:__version__",
     "pyproject.toml:version"
 ]
 branch = "main"

@@ -12,7 +12,7 @@
 #
 import os
 import sys
-from wanikani_cli import __version__
+from hebikani import __version__
 
 sys.path.insert(0, os.path.abspath("."))
 

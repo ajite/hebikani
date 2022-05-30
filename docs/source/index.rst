@@ -3,14 +3,14 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to WaniKani CLI's documentation!
+Welcome to HebiKani's documentation!
 ========================================
 
-**WaniKani CLI** is an unofficial python CLI to do your lessons and reviews on WaniKani.
+**HebiKani** is an unofficial python CLI to do your lessons and reviews on WaniKani.
 
 This app is still in development, so please report any bugs or feature requests on the `GitHub repository`_
 
-.. _GitHub repository: https://github.com/ajite/wanikani-cli
+.. _GitHub repository: https://github.com/ajite/hebikani
 
 .. figure:: _static/demo.gif
    :alt: CLI demo gif

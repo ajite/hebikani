@@ -1,4 +1,4 @@
-from wanikani_cli.input import KanaWordBuilder
+from hebikani.input import KanaWordBuilder
 
 
 def test_kana_builder():

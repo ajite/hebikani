@@ -4,5 +4,5 @@ CLI
 .. autosummary::
    :toctree: generated
 
-   wanikani_cli.wanikani
-   wanikani_cli.input
+   hebikani.hebikani
+   hebikani.input

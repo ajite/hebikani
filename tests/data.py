@@ -1,4 +1,4 @@
-"""Test data from wanikani API."""
+"""Test data from WaniKani API."""
 
 API_KEY = "API_KEY"
 
