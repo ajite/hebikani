@@ -11,6 +11,7 @@ Usage:
 """
 import os
 import random
+import re
 import tempfile
 import threading
 from argparse import ArgumentParser, ArgumentTypeError, RawTextHelpFormatter
@@ -21,6 +22,7 @@ from typing import List
 
 import ascii_magic
 import requests
+import romkan
 from colorama import Back, Fore, Style
 from PIL import Image, ImageOps
 from playsound import playsound
@@ -30,10 +32,10 @@ from hebikani.input import getch, input_kana
 from hebikani.typing import (
     AnswerType,
     Gender,
+    HTTPMethod,
     QuestionType,
     SubjectObject,
     VoiceMode,
-    HTTPMethod,
 )
 
 API_URL = "https://api.wanikani.com/v2/"
@@ -445,6 +447,33 @@ class AnswerManager:
         return list(filter(lambda a: a.is_acceptable, self.answers))
 
     @property
+    def hard_mode_acceptable_answers(self) -> List[Answer]:
+        """Get the acceptable answers in hard mode.
+        Katana reading questions do not accept hiraganas.
+
+        Returns:
+            List[Answer]: The acceptable answers.
+        """
+        answers = self.acceptable_answers
+
+        # Check for reading questions with two readings.
+        if self.question_type == QuestionType.READING and len(answers) == 2:
+            roma1 = romkan.to_roma(answers[0].value)
+            roma2 = romkan.to_roma(answers[1].value)
+
+            # Check if the two readings are the same in romaji.
+            if roma1 == roma2:
+                katanaka_regexp = re.compile(r"[\u30A0-\u30FF]+")
+                # Keep the one that has Katanaka characters.
+                answers = [
+                    answers[0]
+                    if katanaka_regexp.match(answers[0].value)
+                    else answers[1]
+                ]
+
+        return answers
+
+    @property
     def unacceptable_answers(self) -> List[Answer]:
         """Get the unacceptable answers.
 
@@ -480,14 +509,16 @@ class AnswerManager:
             # Only works for reading questions.
             answer_type = AnswerType.CORRECT
             answers = [i.strip() for i in inputed_answer.split(",")]
-            if set(answers) == set([a.value for a in self.acceptable_answers]):
+            if set(answers) == set(
+                [a.value for a in self.hard_mode_acceptable_answers]
+            ):
                 answer_type = AnswerType.CORRECT
             elif (
-                len(self.acceptable_answers) == len(answers)
+                len(self.hard_mode_acceptable_answers) == len(answers)
                 and len(
                     set(answers)
                     - (
-                        set([a.value for a in self.acceptable_answers])
+                        set([a.value for a in self.hard_mode_acceptable_answers])
                         | set([a.value for a in self.unacceptable_answers])
                     )
                 )
@@ -1044,7 +1075,7 @@ class ReviewSession(Session):
             question.question_type == QuestionType.READING
             and self.client.options.hard_mode
         ):
-            nb_answers = len(question.subject.readings.acceptable_answers)
+            nb_answers = len(question.subject.readings.hard_mode_acceptable_answers)
             prompt = (
                 prompt[:-2]
                 + f" ({nb_answers} {'answer' if nb_answers == 1 else 'answers'}): "
@@ -1323,9 +1354,13 @@ def main():
     )
 
     text = (
-        "Ask for all the readings separated with a comma."
-        "E.g: The answer for 何　should be 'なん,なに'."
-        "The order does not matter. (default: False)"
+        "- Ask for all the readings separated with a comma.\n"
+        "E.g: The answer for 何　should be 'なん,なに'. "
+        "The order does not matter. "
+        "\n- Questions using katana can only be answered "
+        "with katanana.\n"
+        "E.g:　The anwser for ベッドの下 should be ベッドのした."
+        "\n(default: False)"
     )
 
     parser.add_argument("--hard", action="store_true", default=False, help=text)
