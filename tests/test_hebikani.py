@@ -37,7 +37,7 @@ from .data import (
     get_subject_without_utf_entry,
     get_summary,
     vocabulary_subject,
-    vocab_katana_equals_hiragna_subject,
+    vocab_katakana_equals_hiragna_subject,
 )
 
 
@@ -277,11 +277,11 @@ def test_hard_mode():
     assert readings.solve("かず", True) == AnswerType.INEXACT
 
 
-def test_hard_mode_accept_katana_only():
+def test_hard_mode_accept_katakana_only():
     """Make it mandatory to input katakana reading in hard mode.
     It should be possible to input hirgana reading in normal mode.
     """
-    subject = Subject(vocab_katana_equals_hiragna_subject)
+    subject = Subject(vocab_katakana_equals_hiragna_subject)
     readings = subject.readings
 
     assert len(readings.acceptable_answers) == 2
