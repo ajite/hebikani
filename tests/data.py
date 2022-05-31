@@ -331,3 +331,119 @@ get_all_assignments = {
         }
     ],
 }
+
+vocab_katana_equals_hiragna_subject = {
+    "id": 8960,
+    "object": "vocabulary",
+    "url": "https://api.wanikani.com/v2/subjects/8960",
+    "data_updated_at": "2022-01-18T08:08:16.473772Z",
+    "data": {
+        "created_at": "2021-04-27T12:21:07.720651Z",
+        "level": 3,
+        "slug": "\u30d9\u30c3\u30c9\u306e\u4e0b",
+        "hidden_at": None,
+        "document_url": "https://www.wanikani.com/vocabulary/%E3%83%99%E3%83%83%E3%83%89%E3%81%AE%E4%B8%8B",
+        "characters": "\u30d9\u30c3\u30c9\u306e\u4e0b",
+        "meanings": [
+            {"meaning": "Under The Bed", "primary": True, "accepted_answer": True},
+            {"meaning": "Below The Bed", "primary": False, "accepted_answer": True},
+            {"meaning": "Beneath The Bed", "primary": False, "accepted_answer": True},
+        ],
+        "auxiliary_meanings": [{"type": "whitelist", "meaning": "Underneath The Bed"}],
+        "readings": [
+            {
+                "primary": True,
+                "reading": "\u3079\u3063\u3069\u306e\u3057\u305f",
+                "accepted_answer": True,
+            },
+            {
+                "primary": False,
+                "reading": "\u30d9\u30c3\u30c9\u306e\u3057\u305f",
+                "accepted_answer": True,
+            },
+        ],
+        "parts_of_speech": ["expression"],
+        "component_subject_ids": [451],
+        "meaning_mnemonic": "Lorem Ipsum Dolor",
+        "reading_mnemonic": "Lorem Ipsum Dolor",
+        "context_sentences": [
+            {"en": "Lorem ipsum dolor.", "ja": "\u3079\u3063"},
+        ],
+        "pronunciation_audios": [
+            {
+                "url": "https://files.wanikani.com/j6zt8pfxuowvahv3lfc6banwu4m1",
+                "metadata·      1234567890-=-04321·90=-09": {
+                    "gender": "male",
+                    "source_id": 43055,
+                    "pronunciation": "\u3079\u3063\u3069\u306e\u3057\u305f",
+                    "voice_actor_id": 2,
+                    "voice_actor_name": "Kenichi",
+                    "voice_description": "Tokyo accent",
+                },
+                "content_type": "audio/mpeg",
+            },
+            {
+                "url": "https://files.wanikani.com/ez2tq8tht6qwoskqme7y8vz5k0g5",
+                "metadata": {
+                    "gender": "female",
+                    "source_id": 44512,
+                    "pronunciation": "\u3079\u3063\u3069\u306e\u3057\u305f",
+                    "voice_actor_id": 1,
+                    "voice_actor_name": "Kyoko",
+                    "voice_description": "Tokyo accent",
+                },
+                "content_type": "audio/webm",
+            },
+            {
+                "url": "https://files.wanikani.com/xa3cqlpt9rghk2hnyja4vt2bzuys",
+                "metadata": {
+                    "gender": "female",
+                    "source_id": 44512,
+                    "pronunciation": "\u3079\u3063\u3069\u306e\u3057\u305f",
+                    "voice_actor_id": 1,
+                    "voice_actor_name": "Kyoko",
+                    "voice_description": "Tokyo accent",
+                },
+                "content_type": "audio/ogg",
+            },
+            {
+                "url": "https://files.wanikani.com/x7u0db82fn8r7v7i6px8u4c8y7f3",
+                "metadata": {
+                    "gender": "female",
+                    "source_id": 44512,
+                    "pronunciation": "\u3079\u3063\u3069\u306e\u3057\u305f",
+                    "voice_actor_id": 1,
+                    "voice_actor_name": "Kyoko",
+                    "voice_description": "Tokyo accent",
+                },
+                "content_type": "audio/mpeg",
+            },
+            {
+                "url": "https://files.wanikani.com/4rvxy2h2k07hv0ed3tisufs6gr1p",
+                "metadata": {
+                    "gender": "male",
+                    "source_id": 43055,
+                    "pronunciation": "\u3079\u3063\u3069\u306e\u3057\u305f",
+                    "voice_actor_id": 2,
+                    "voice_actor_name": "Kenichi",
+                    "voice_description": "Tokyo accent",
+                },
+                "content_type": "audio/webm",
+            },
+            {
+                "url": "https://files.wanikani.com/o4mlolxlqveeggpbiboilnhxqkx5",
+                "metadata": {
+                    "gender": "male",
+                    "source_id": 43055,
+                    "pronunciation": "\u3079\u3063\u3069\u306e\u3057\u305f",
+                    "voice_actor_id": 2,
+                    "voice_actor_name": "Kenichi",
+                    "voice_description": "Tokyo accent",
+                },
+                "content_type": "audio/ogg",
+            },
+        ],
+        "lesson_position": 55,
+        "spaced_repetition_system_id": 1,
+    },
+}
