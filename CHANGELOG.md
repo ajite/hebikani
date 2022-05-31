@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v1.1.0 (2022-05-31)
+### Feature
+* Hard mode requires correct kana ([#9](https://github.com/ajite/hebikani/issues/9)) ([`3b0b834`](https://github.com/ajite/hebikani/commit/3b0b8347d8d1ef1d9dd6636b61a295d560b1dae1))
+
+### Documentation
+* Change the doc title name doc to HebiKani ([#8](https://github.com/ajite/hebikani/issues/8)) ([`0435831`](https://github.com/ajite/hebikani/commit/0435831d22c721c85669d0539b9d2ac2f8d830b4))
+
 ## v1.0.0 (2022-05-30)
 ### Breaking
 * the library name on PIP is not wanikani-cli anymore. ([`f9a8ebd`](https://github.com/ajite/hebikani/commit/f9a8ebda6c11d772676c1a2edfd711fd83e6ba9d))
