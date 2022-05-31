@@ -449,7 +449,7 @@ class AnswerManager:
     @property
     def hard_mode_acceptable_answers(self) -> List[Answer]:
         """Get the acceptable answers in hard mode.
-        Katana reading questions do not accept hiraganas.
+        Katakana reading questions do not accept hiraganas.
 
         Returns:
             List[Answer]: The acceptable answers.
@@ -463,11 +463,11 @@ class AnswerManager:
 
             # Check if the two readings are the same in romaji.
             if roma1 == roma2:
-                katanaka_regexp = re.compile(r"[\u30A0-\u30FF]+")
-                # Keep the one that has Katanaka characters.
+                katakana_regexp = re.compile(r"[\u30A0-\u30FF]+")
+                # Keep the one that has katakana characters.
                 answers = [
                     answers[0]
-                    if katanaka_regexp.match(answers[0].value)
+                    if katakana_regexp.match(answers[0].value)
                     else answers[1]
                 ]
 
@@ -1357,7 +1357,7 @@ def main():
         "- Ask for all the readings separated with a comma.\n"
         "E.g: The answer for 何　should be 'なん,なに'. "
         "The order does not matter. "
-        "\n- Questions using katana can only be answered "
+        "\n- Questions using katakana can only be answered "
         "with katanana.\n"
         "E.g:　The anwser for ベッドの下 should be ベッドのした."
         "\n(default: False)"

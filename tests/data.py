@@ -332,7 +332,7 @@ get_all_assignments = {
     ],
 }
 
-vocab_katana_equals_hiragna_subject = {
+vocab_katakana_equals_hiragna_subject = {
     "id": 8960,
     "object": "vocabulary",
     "url": "https://api.wanikani.com/v2/subjects/8960",
