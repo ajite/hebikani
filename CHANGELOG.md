@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.2.0 (2022-06-01)
+### Feature
+* Vertical histogram to display next reviews ([#11](https://github.com/ajite/hebikani/issues/11)) ([`67fc8a8`](https://github.com/ajite/hebikani/commit/67fc8a846ab34ec478c7937a69d8401720839792))
+
 ## v1.1.0 (2022-05-31)
 ### Feature
 * Hard mode requires correct kana ([#9](https://github.com/ajite/hebikani/issues/9)) ([`3b0b834`](https://github.com/ajite/hebikani/commit/3b0b8347d8d1ef1d9dd6636b61a295d560b1dae1))
