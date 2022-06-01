@@ -26,6 +26,7 @@ hebikani.hebikani.Summary
       ~Summary.lessons
       ~Summary.nb_lessons
       ~Summary.nb_reviews
+      ~Summary.next_reviews_info
       ~Summary.reviews
    
    

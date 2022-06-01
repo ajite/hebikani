@@ -1,18 +1,12 @@
 import argparse
+import datetime
 import io
 import os
 from unittest.mock import patch
 
 import pytest
 from colorama import Back, Fore, Style
-from hebikani.typing import (
-    AnswerType,
-    Gender,
-    HTTPMethod,
-    QuestionType,
-    SubjectObject,
-    VoiceMode,
-)
+from freezegun import freeze_time
 from hebikani.hebikani import (
     MAX_NB_SUJECTS,
     MIN_NB_SUBJECTS,
@@ -20,13 +14,23 @@ from hebikani.hebikani import (
     ClientOptions,
     ReviewSession,
     Subject,
+    Summary,
     api_request,
     audio_cache,
     chunks,
     clear_audio_cache,
     clear_terminal,
     range_int_type,
+    utc_to_local,
     wanikani_tag_to_color,
+)
+from hebikani.typing import (
+    AnswerType,
+    Gender,
+    HTTPMethod,
+    QuestionType,
+    SubjectObject,
+    VoiceMode,
 )
 
 from .data import (
@@ -36,8 +40,8 @@ from .data import (
     get_specific_subjects,
     get_subject_without_utf_entry,
     get_summary,
-    vocabulary_subject,
     vocab_katakana_equals_hiragna_subject,
+    vocabulary_subject,
 )
 
 
@@ -66,15 +70,51 @@ def test_api_request_invalid_http_method():
         api_request("TEST", "/summary", API_KEY)
 
 
+@freeze_time("2018-04-11T00:00:00.000000+00:00")
 @patch("hebikani.hebikani.api_request", return_value=get_summary)
 def test_client_summary(mock_api_request):
     """Test the summary we get from the API."""
     client = Client(API_KEY)
     summary = client.summary()
+
     assert summary.lessons == [25, 26]
     assert summary.reviews == [21, 23, 24]
     assert summary.nb_lessons == 2
     assert summary.nb_reviews == 3
+
+    assert str(summary) == (
+        "Summary:\n    Lessons: 2\n    Reviews: 3\n    Next reviews: "
+        "\n\tToday | _______________________________________\n\t10 "
+        "AM | \x1b[32m⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿\x1b[39m⣿ +3 | "
+        "6\n\t03 PM | \x1b[32m⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿\x1b[39m⣿⣿⣿⣿⣿⣿⣿⣿⣿"
+        "⣿⣿ +2 | 8\n\t‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾"
+    )
+
+
+@freeze_time("2018-04-10T00:00:00.000000+00:00")
+def test_client_summary_hist_one_day_before():
+    """Test summary histogram is empty when the date is one day after."""
+    summary = Summary(get_summary)
+
+    assert str(summary) == (
+        (
+            "Summary:\n    Lessons: 2\n    Reviews: 3\n    "
+            "Next reviews: No more reviews for today"
+        )
+    )
+
+
+@freeze_time("2018-04-12T00:00:00.000000+00:00")
+def test_client_summary_hist_one_day_after():
+    """Test summary histogram is empty when date is passed."""
+    summary = Summary(get_summary)
+
+    assert str(summary) == (
+        (
+            "Summary:\n    Lessons: 2\n    Reviews: 3\n    "
+            "Next reviews: No more reviews for today"
+        )
+    )
 
 
 @patch("hebikani.hebikani.api_request", return_value=get_specific_subjects)
@@ -419,3 +459,17 @@ def test_clear_audio_cache():
 
     # File should be closed
     assert f.closed is True
+
+
+@freeze_time("2018-04-11T00:00:00.000000+00:00", tz_offset=+8)
+def test_utc_to_local():
+    """It should convert UTC to local time.
+    Local time has been set to GMT +8
+    """
+    utc_time = datetime.datetime.fromisoformat("2018-04-11T00:00:00.000000+00:00")
+    local_time = utc_to_local(utc_time)
+
+    assert local_time == datetime.datetime.fromisoformat(
+        "2018-04-11T08:00:00.000000+00:00"
+    )
+    assert local_time != utc_time

@@ -68,6 +68,8 @@
     
     url_to_ascii
     
+    utc_to_local
+    
     wanikani_tag_to_color
     
 

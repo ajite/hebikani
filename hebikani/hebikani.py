@@ -9,11 +9,13 @@ Usage:
     >>> from hebikani import hebikani
     >>> client = hebikani.Client(API_KEY)
 """
+import datetime
 import os
 import random
 import re
 import tempfile
 import threading
+import time
 from argparse import ArgumentParser, ArgumentTypeError, RawTextHelpFormatter
 from difflib import get_close_matches
 from io import BytesIO
@@ -28,6 +30,7 @@ from PIL import Image, ImageOps
 from playsound import playsound
 
 from hebikani import __version__
+from hebikani.graph import hist
 from hebikani.input import getch, input_kana
 from hebikani.typing import (
     AnswerType,
@@ -150,6 +153,22 @@ def chunks(lst, n):
     """
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
+
+
+def utc_to_local(utc: datetime.datetime) -> datetime.datetime:
+    """Convert a UTC datetime to local datetime.
+
+    Args:
+        utc (datetime.datetime): The UTC datetime to convert.
+
+    Returns:
+        datetime.datetime: The local datetime.
+    """
+    epoch = time.mktime(utc.timetuple())
+    offset = datetime.datetime.fromtimestamp(
+        epoch
+    ) - datetime.datetime.utcfromtimestamp(epoch)
+    return utc + offset
 
 
 class ClientOptions:
@@ -322,7 +341,8 @@ class Summary(APIObject):
     def __str__(self) -> str:
         return f"""Summary:
     Lessons: {self.nb_lessons}
-    Reviews: {self.nb_reviews}"""
+    Reviews: {self.nb_reviews}
+    Next reviews: {self.next_reviews_info or 'No more reviews for today'}"""
 
     @property
     def lessons(self):
@@ -343,6 +363,34 @@ class Summary(APIObject):
     def nb_reviews(self):
         """Get the number of reviews available."""
         return len(self.reviews)
+
+    @property
+    def next_reviews_info(self) -> str:
+        """Get the next reviews info."""
+        hist_data = []
+        bins = 0
+        for review in self.data["data"]["reviews"][1:]:
+            nb_reviews = len(review["subject_ids"])
+
+            if nb_reviews == 0:
+                continue
+            review_time = datetime.datetime.fromisoformat(
+                review["available_at"].replace("Z", "+00:00")
+            )
+            review_time = utc_to_local(review_time).replace(tzinfo=None)
+
+            if datetime.datetime.today().date() != review_time.date():
+                continue
+
+            bins += 1
+            hist_data += [(review_time, nb_reviews)]
+
+        return hist(
+            hist_data,
+            width=30,
+            total=self.nb_reviews,
+            linesep="\n\t",
+        )
 
 
 class ContextSentence(APIObject):
