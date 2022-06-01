@@ -5,18 +5,23 @@ API_KEY = "API_KEY"
 get_summary = {
     "object": "report",
     "url": "https://api.wanikani.com/v2/summary",
-    "data_updated_at": "2018-04-11T21:00:00.000000Z",
+    "data_updated_at": "2018-04-11T00:00:00.000000Z",
     "data": {
         "lessons": [
-            {"available_at": "2018-04-11T21:00:00.000000Z", "subject_ids": [25, 26]}
+            {"available_at": "2018-04-11T00:00:00.000000Z", "subject_ids": [25, 26]}
         ],
-        "next_reviews_at": "2018-04-11T21:00:00.000000Z",
+        "next_reviews_at": "2018-04-11T11:00:00.000000Z",
         "reviews": [
             {
-                "available_at": "2018-04-11T21:00:00.000000Z",
+                "available_at": "2018-04-11T00:00:00.000000Z",
                 "subject_ids": [21, 23, 24],
             },
-            {"available_at": "2018-04-11T22:00:00.000000Z", "subject_ids": []},
+            {
+                "available_at": "2018-04-11T10:00:00.000000Z",
+                "subject_ids": [27, 28, 29],
+            },
+            {"available_at": "2018-04-11T13:00:00.000000Z", "subject_ids": []},
+            {"available_at": "2018-04-11T15:00:00.000000Z", "subject_ids": [30, 31]},
         ],
     },
 }
