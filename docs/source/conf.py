@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath("."))
 
 # -- Project information -----------------------------------------------------
 
-project = "HebiKani CLI"
+project = "HebiKani"
 copyright = "2022, Augustin Cisterne-Kaas"
 author = "Augustin Cisterne-Kaas"
 
