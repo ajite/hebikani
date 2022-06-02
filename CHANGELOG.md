@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v1.2.1 (2022-06-02)
+### Fix
+* **deps:** Bump pillow from 9.1.0 to 9.1.1 ([#14](https://github.com/ajite/hebikani/issues/14)) ([`10e6a54`](https://github.com/ajite/hebikani/commit/10e6a549185976321b307d8a1d994d2744d6b88c))
+* **deps:** Bump pillow from 9.1.0 to 9.1.1 ([#13](https://github.com/ajite/hebikani/issues/13)) ([`9b48cb9`](https://github.com/ajite/hebikani/commit/9b48cb9a933bab058342938a43c4ca9349775b75))
+
+### Documentation
+* Add chart documentation and fix doc title ([#12](https://github.com/ajite/hebikani/issues/12)) ([`9cec866`](https://github.com/ajite/hebikani/commit/9cec866d368f642afa9d177b3e9423c0aab72d73))
+
 ## v1.2.0 (2022-06-01)
 ### Feature
 * Vertical histogram to display next reviews ([#11](https://github.com/ajite/hebikani/issues/11)) ([`67fc8a8`](https://github.com/ajite/hebikani/commit/67fc8a846ab34ec478c7937a69d8401720839792))
