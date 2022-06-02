@@ -16,7 +16,6 @@ ascii-magic = "^1.6"
 Pillow = "^9.1.0"
 playsound = "^1.3.0"
 pyobjc = {version = "^8.5", platform = "darwin"}
-coverage = "^6.3.2"
 colorama = "^0.4.4"
 PyGObject = {version = "^3.42.1", platform = "linux"}
 
@@ -28,6 +27,7 @@ Sphinx = "^5.0.0"
 sphinxcontrib-napoleon = "^0.7"
 sphinx-rtd-theme = "^1.0.0"
 freezegun = "^1.2.1"
+coverage = "^6.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
