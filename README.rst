@@ -60,18 +60,6 @@ This project uses `Poetry <https://python-poetry.org/docs/>`_.
 
     poetry install
 
-You can also use the generated `requirements.txt` file.
-
-.. code-block:: bash
-
-    pip install -r requirements.txt
-
-Please run that command after adding external libaries through poetry:
-
-.. code-block:: bash
-
-    poetry export --without-hashes --format requirements.txt --output requirements.txt
-
 TEST
 ----
 
