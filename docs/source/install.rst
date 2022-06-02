@@ -58,11 +58,3 @@ This project uses `Poetry <https://python-poetry.org/docs/>`_.
     poetry install
     poetry shell
     hebikani --help
-
-If you do not want to use poetry you can use the `requirements.txt` file.
-
-**Note**: External python libraries will need to be added through poetry. Once added we need to generate a new requirements.txt via:
-
-.. code-block::
-
-    poetry export --without-hashes --format requirements.txt --output requirements.txt
