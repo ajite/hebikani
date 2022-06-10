@@ -13,6 +13,21 @@ HebiKani
 
 A command line interface to do your WaniKani lessons and reviews.
 
+.. figure:: docs/source/_static/logo.png
+    :alt: HebiKani Logo
+    :width: 300px
+    :align: center
+
+|
+
+Story written by OpenAI (text-davinci-002):
+   |   The snake had always been interested in learning Japanese, and so when it saw the Crabigator teaching the language, it decided to enroll in the class. The Crabigator was a great teacher, and the snake quickly learned the basics of the language. After a few months, the snake graduated from the class, and as a reward, the Crabigator gave it a magical stone that would allow it to transform into a half-crab, half-snake creature. The snake was thrilled, and immediately used the stone to transform. It then set out to teach Japanese to people all over the world, using its new form to make learning the language fun and easy.
+
+DEMO
+----
+
+This is a preview of what a lesson session looks like:
+
 .. figure:: docs/source/_static/demo.gif
    :alt: CLI demo gif
 
