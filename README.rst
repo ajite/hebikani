@@ -16,7 +16,7 @@ A command line interface to do your WaniKani lessons and reviews.
 .. raw:: html
 
   <p align="center">
-    <img width="300" height="300" src="docs/source/_static/logo.png">
+    <img width="300" height="300" src="https://raw.githubusercontent.com/ajite/hebikani/main/docs/source/_static/logo.png">
   </p>
 
 Story written by OpenAI (text-davinci-002):
@@ -27,7 +27,7 @@ DEMO
 
 This is a preview of what a lesson session looks like:
 
-.. figure:: docs/source/_static/demo.gif
+.. figure:: https://raw.githubusercontent.com/ajite/hebikani/main/docs/source/_static/demo.gif
    :alt: CLI demo gif
 
 INSTALL
