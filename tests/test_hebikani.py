@@ -10,9 +10,13 @@ from freezegun import freeze_time
 from hebikani.hebikani import (
     MAX_NB_SUJECTS,
     MIN_NB_SUBJECTS,
+    AnswerManager,
     Client,
     ClientOptions,
+    LessonSession,
+    Question,
     ReviewSession,
+    ReviewUpdate,
     Subject,
     Summary,
     api_request,
@@ -40,6 +44,7 @@ from .data import (
     get_specific_subjects,
     get_subject_without_utf_entry,
     get_summary,
+    post_review,
     vocab_katakana_equals_hiragna_subject,
     vocabulary_subject,
 )
@@ -130,6 +135,7 @@ def test_client_subject_per_ids(mock_api_request):
 
 def test_vocabulary_subject():
     subject = Subject(vocabulary_subject)
+    assert str(subject) == "vocabulary"
     assert subject.object == "vocabulary"
     assert subject.component_subject_ids == [440]
     assert len(subject.context_sentences) == 3
@@ -234,6 +240,23 @@ def test_review_session_audio_mode(audio_play_mock, input_mock):
         current_gender = session.last_audio_played.voice_gender
 
 
+@patch("hebikani.hebikani.requests.get")
+def test_audio_download(mock_get):
+    """Test to download an audio unless it is cached"""
+    mock_get.return_value.content = b"test"
+    subject = Subject(vocabulary_subject)
+    assert len(audio_cache.keys()) == 0
+    audio = subject.audios[0]
+    audio.download()
+    assert len(audio_cache.keys()) == 1
+
+    key, val = audio_cache.popitem()
+    assert key == audio.url
+    assert val.readlines() == [b"test"]
+    # Remove the temp file
+    val.close()
+
+
 def test_card_answer():
     """Test"""
     subject = Subject(get_specific_subjects["data"][0])
@@ -246,7 +269,9 @@ def test_card_answer():
     assert len(meanings.answers) == 1
 
     assert meanings.primary.value == "one"
+    assert meanings.primary.type == ""
     assert readings.primary.value == "いち"
+    assert readings.primary.type == "onyomi"
 
     assert readings.solve("いち") == AnswerType.CORRECT
     assert readings.solve("ひと") == AnswerType.INEXACT
@@ -264,6 +289,60 @@ def test_card_answer():
     assert meanings.solve("skillful") == AnswerType.CORRECT
     assert meanings.solve("skilfull") == AnswerType.A_BIT_OFF
     assert meanings.solve("unskilfull") == AnswerType.INCORRECT
+
+
+def test_no_primary_answer():
+    """Test the case where there is no primary answer."""
+    subject = Subject(get_specific_subjects["data"][0])
+    subject._readings = AnswerManager([])
+    readings = subject.readings
+    assert len(readings.answers) == 0
+    with pytest.raises(ValueError):
+        readings.primary is None
+
+
+def test_answer_values():
+    """Test answer values."""
+
+    # Test with one answer.
+    subject = Subject(get_specific_subjects["data"][0])
+    readings = subject.readings
+    assert readings.answer_values == "いち"
+
+    # Test with multiple answers.
+    subject = Subject(double_reading_subject)
+    readings = subject.readings
+    assert readings.answer_values == "なに, なん"
+
+
+def test_question_add_wrong_answers():
+    """Test if the question add wrong answer increase
+    the wrong answer counter."""
+    subject = Subject(get_specific_subjects["data"][0])
+    question = Question(subject, QuestionType.READING)
+    assert question.wrong_answer_count == 0
+    question.add_wrong_answer()
+    assert question.wrong_answer_count == 1
+    question.add_wrong_answer()
+    assert question.wrong_answer_count == 2
+
+
+def test_question_answer_values():
+    """Test the question answer values."""
+    subject = Subject(double_reading_subject)
+    question = Question(subject, QuestionType.READING)
+    assert question.answer_values == "なに, なん"
+    question = Question(subject, QuestionType.MEANING)
+    assert question.answer_values == "what"
+
+
+def test_question_primaru():
+    """Test the question primary."""
+    subject = Subject(double_reading_subject)
+    question = Question(subject, QuestionType.READING)
+    assert question.primary.value == "なに"
+    question = Question(subject, QuestionType.MEANING)
+    assert question.primary.value == "what"
 
 
 def test_card_is_solved():
@@ -473,3 +552,92 @@ def test_utc_to_local():
         "2018-04-11T08:00:00.000000+00:00"
     )
     assert local_time != utc_time
+
+
+@patch("hebikani.hebikani.api_request", return_value=post_review)
+def test_review_update(mock_api_request):
+    client = Client(API_KEY)
+    subject = Subject(vocabulary_subject)
+    review_update = ReviewUpdate(client, subject.id, 0, 0)
+    assert review_update.subject_id == subject.id
+    assert review_update.incorrect_meaning_answers == 0
+    assert review_update.incorrect_reading_answers == 0
+
+    assert review_update.save() == post_review
+
+
+@patch(
+    "hebikani.hebikani.Client._subject_per_ids",
+    return_value=[Subject(get_specific_subjects["data"][0])],
+)
+def test_lesson_tab_composition(mock_subject_per_ids):
+    """Test the tab composition display"""
+    client = Client(API_KEY)
+    subject = Subject(vocabulary_subject)
+    session = LessonSession(client, [subject])
+    assert session.tab_composition(subject) == (
+        "This vocabulary is made of 1 kanji:\n- 一: skillful"
+    )
+
+
+def test_lesson_tab_meaning():
+    """Test the tab meaning display"""
+    client = Client(API_KEY)
+    subject = Subject(vocabulary_subject)
+    session = LessonSession(client, [subject])
+    assert session.tab_meaning(subject) == (
+        "one\n\nAs is the case with most vocab words that consist "
+        "of a single kanji, this vocab word has the same meaning as"
+        " the kanji it parallels, which is \x1b[1m\x1b[37m\x1b[45mon"
+        "e\x1b[49m\x1b[39m\x1b[0m."
+    )
+
+
+@patch("hebikani.hebikani.Audio.play")
+def test_lesson_tab_reading(mock_play):
+    """Test the tab reading display"""
+    client = Client(API_KEY)
+    subject = Subject(vocabulary_subject)
+    session = LessonSession(client, [subject])
+    assert session.tab_reading(subject) == (
+        "いち\n\nWhen a vocab word is all alone and has no okurigana "
+        "(hiragana attached to kanji) connected to it, it usually uses "
+        "the kun'yomi reading. Numbers are an exception, however. When "
+        "a number is all alone, with no kanji or okurigana, it is going"
+        " to be the on'yomi reading, which you learned with the kanji. "
+        " Just remember this exception for alone numbers and you'll be"
+        " able to read future number-related vocab to come."
+    )
+
+
+def test_lesson_tab_context():
+    """Test the tab context display"""
+    client = Client(API_KEY)
+    subject = Subject(vocabulary_subject)
+    session = LessonSession(client, [subject])
+    assert session.tab_context(subject) == (
+        "一ど、あいましょう。\nLet’s meet up once.\n\n"
+        "一いはアメリカ人でした。\nFirst place was an American.\n\n"
+        "ぼくはせかいで一ばんよわい。\nI’m the weakest man in the world."
+    )
+
+
+def test_lesson_beautify_tab_name():
+    """Test the lesson beautify name method"""
+    session = LessonSession(None, None)
+    assert session.beautify_tab_name("meaning") == "Meaning"
+    assert session.beautify_tab_name("reading") == "Reading"
+    assert session.beautify_tab_name("context_sentences") == "Context sentences"
+
+
+def test_beautify_tabs_display():
+    """Test the beautify tabs display method"""
+    session = LessonSession(None, None)
+    assert session.beautify_tabs_display(["meaning", "reading", "context"], 1) == (
+        "Meaning\x1b[0m\x1b[49m\x1b[39m > \x1b[1m\x1b[44m\x1b[37m"
+        "Reading\x1b[0m\x1b[49m\x1b[39m > Context\x1b[0m\x1b[49m\x1b[39m"
+    )
+    assert session.beautify_tabs_display(["meaning", "reading", "context"], 2) == (
+        "Meaning\x1b[0m\x1b[49m\x1b[39m > Reading\x1b[0m\x1b[49m\x1b[39m"
+        " > \x1b[1m\x1b[44m\x1b[37mContext\x1b[0m\x1b[49m\x1b[39m"
+    )

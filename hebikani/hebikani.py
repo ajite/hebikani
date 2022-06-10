@@ -318,7 +318,7 @@ class Audio(APIObject):
         return _gender
 
     def download(self):
-        """Downloadthe audio."""
+        """Download the audio if not cached."""
         if self.url not in audio_cache.keys():
             r = requests.get(self.url)
             f = tempfile.NamedTemporaryFile(suffix=self.ext)
@@ -327,10 +327,8 @@ class Audio(APIObject):
             audio_cache[self.url] = f
 
     def play(self):
-        """Play the audio and download it if needed."""
-        if self.url not in audio_cache.keys():
-            self.download()
-
+        """Download and Play the audio."""
+        self.download()
         f = audio_cache[self.url]
         threading.Thread(target=playsound, args=(f.name,), daemon=True).start()
 
@@ -618,8 +616,13 @@ class ReviewUpdate:
         self.incorrect_meaning_answers = incorrect_meaning_answers
         self.incorrect_reading_answers = incorrect_reading_answers
 
-    def save(self):
-        """Save the review update on WaniKani."""
+    def save(self) -> dict:
+        """Save the review update on WaniKani.
+
+        Returns:
+            dict: The response from the API.
+        """
+        request_data = None
         data = {
             "review": {
                 "subject_id": self.subject_id,
@@ -628,7 +631,11 @@ class ReviewUpdate:
             }
         }
         if self.client.options.dry_run is False:
-            api_request(HTTPMethod.POST, "reviews", self.client.api_key, data)
+            request_data = api_request(
+                HTTPMethod.POST, "reviews", self.client.api_key, data
+            )
+
+        return request_data
 
 
 class AssignmentUpdate:
@@ -1144,15 +1151,14 @@ class ReviewSession(Session):
             question (Question): The question.
         """
         if (
-            self.client.options.silent
-            or not question.subject.audios
-            or question.question_type == QuestionType.MEANING
+            not self.client.options.silent
+            and question.subject.audios
+            and question.question_type == QuestionType.READING
+            and (
+                self.client.options.autoplay
+                or input("Would you like to hear the audio? [y/N] ") in ["y", "Y"]
+            )
         ):
-            return
-
-        if self.client.options.autoplay or input(
-            "Would you like to hear the audio? [y/N] "
-        ) in ["y", "Y"]:
             audio = self.select_audio(question.subject.audios)
             audio.play()
             self.last_audio_played = audio
