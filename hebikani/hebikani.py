@@ -14,6 +14,7 @@ import os
 import random
 import re
 import tempfile
+import threading
 import time
 from argparse import ArgumentParser, ArgumentTypeError, RawTextHelpFormatter
 from difflib import get_close_matches
@@ -32,14 +33,8 @@ from playsound import playsound
 from hebikani import __version__
 from hebikani.graph import hist
 from hebikani.input import getch, input_kana
-from hebikani.typing import (
-    AnswerType,
-    Gender,
-    HTTPMethod,
-    QuestionType,
-    SubjectObject,
-    VoiceMode,
-)
+from hebikani.typing import (AnswerType, Gender, HTTPMethod, QuestionType,
+                             SubjectObject, VoiceMode)
 
 if system() == "Windows":
     from mutagen.mp3 import MP3
@@ -342,7 +337,7 @@ class Audio(APIObject):
         """Download and Play the audio."""
         self.download()
         f = audio_cache[self.url]
-        playsound(f.name, False)
+        threading.Thread(target=playsound, args=(f.name,), daemon=True).start()
 
 
 class Summary(APIObject):
