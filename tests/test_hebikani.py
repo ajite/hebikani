@@ -1,7 +1,7 @@
 import argparse
 import datetime
-import io
 import os
+import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -252,9 +252,10 @@ def test_audio_download(mock_get):
 
     key, val = audio_cache.popitem()
     assert key == audio.url
-    assert val.readlines() == [b"test"]
-    # Remove the temp file
-    val.close()
+    f = open(val.name, "rb")
+    assert f.readlines() == [b"test"]
+    f.close()
+    os.unlink(val.name)
 
 
 def test_card_answer():
@@ -526,18 +527,20 @@ def test_clear_audio_cache():
     assert len(audio_cache) == 0
 
     # Create some fake files. It does not need to be a mp3 file.
-    f = io.BytesIO()
+    f = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
     f.write(b"test")
+    f.seek(0)
+    f.close()
     audio_cache["test"] = f
     assert len(audio_cache) == 1
 
-    # File should be opened
-    assert f.closed is False
+    # File should exist
+    assert os.path.isfile(f.name) is True
 
     clear_audio_cache()
 
-    # File should be closed
-    assert f.closed is True
+    # File should be deleted
+    assert os.path.isfile(f.name) is False
 
 
 @freeze_time("2018-04-11T00:00:00.000000+00:00", tz_offset=+8)

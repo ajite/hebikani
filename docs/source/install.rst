@@ -5,14 +5,13 @@ Python Version
 --------------
 
 We recommend using the latest version of Python. 3.9 and newer.
-This program does not support windows system.
 
 .. code-block:: bash
 
     pip install hebikani
 
-**Note**: You will need the dependencies described below to run this program.
 
+**Note**: You will need the dependencies described below to run this program.
 
 Dependencies
 ------------
@@ -46,6 +45,16 @@ We need it for:
 * `PyGObject`_ (required to play audio).
 
 .. _PyGObject: https://pypi.org/project/pygobject/
+
+
+Windows
+~~~~~~~
+
+.. warning::
+
+    | In the event that the Japanese characters do not display, make sure that you are using a TrueType font that supports Japanese. **SimSun-ExtB** is a good choice.
+    |
+    | On PowerShell you can change the font by clicking on the icon in the top-left corner of the window and select Properties, then change to the Fonts tab and select **SimSun-ExtB**.
 
 
 Development

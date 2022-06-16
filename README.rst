@@ -37,7 +37,7 @@ INSTALL
 
     pip install hebikani
 
-If you are missing libraries check the  `documentation <https://hebikani.readthedocs.io/en/latest/install.html>`_
+Check the  `documentation <https://hebikani.readthedocs.io/en/latest/install.html>`_ to install audio libraries on OSX and Linux or if the japanese characters do not display on Windows.
 
 RUN
 ---

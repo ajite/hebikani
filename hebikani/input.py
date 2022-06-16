@@ -76,7 +76,8 @@ class KanaWordBuilder:
 
 
 if sys.platform == "win32":
-    raise NotImplementedError("This program is not compatible with Windows.")
+    from msvcrt import getch  # type: ignore
+
 else:  # macOS and Linux
     import termios
     import tty
@@ -99,36 +100,38 @@ else:  # macOS and Linux
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return ch
 
-    def input_kana(prompt):
-        if not isinstance(prompt, str):
-            raise TypeError(
-                "prompt argument must be a str, not %s" % (type(prompt).__name__)
-            )
 
-        kana_word_builder = KanaWordBuilder("")
-        sys.stdout.write(prompt)
-        sys.stdout.flush()
-        while True:
-            key = ord(getch())
-            if key == 13:  # Enter key pressed.
-                sys.stdout.write("\n")
-                return kana_word_builder.kana
-            # Backspace/Del key erases previous output.
-            elif key in (8, 127):
-                if len(kana_word_builder.kana) > 0:
-                    # Erases previous character.
-                    kana_word_builder.remove_last_char()
-                    sys.stdout.write(f"\r\x1b[K{prompt}{kana_word_builder.kana}")
-                    sys.stdout.flush()
+def input_kana(prompt):
+    """Get user input to be converted to hiragana or katakana."""
+    if not isinstance(prompt, str):
+        raise TypeError(
+            "prompt argument must be a str, not %s" % (type(prompt).__name__)
+        )
 
-            elif 0 <= key <= 31:
-                # Do nothing for unprintable characters.
-                # TODO: Handle Esc, F1-F12, arrow keys, home, end,
-                # insert,　del, pgup, pgdn
-                pass
-            else:
-                # Key is part of the password; display the mask character.
-                char = chr(key)
-                kana_word_builder.add_romaji(char)
-                sys.stdout.write(f"\r{prompt}{kana_word_builder.kana}")
+    kana_word_builder = KanaWordBuilder("")
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+    while True:
+        key = ord(getch())
+        if key == 13:  # Enter key pressed.
+            sys.stdout.write("\n")
+            return kana_word_builder.kana
+        # Backspace/Del key erases previous output.
+        elif key in (8, 127):
+            if len(kana_word_builder.kana) > 0:
+                # Erases previous character.
+                kana_word_builder.remove_last_char()
+                sys.stdout.write(f"\r\x1b[K{prompt}{kana_word_builder.kana}")
                 sys.stdout.flush()
+
+        elif 0 <= key <= 31:
+            # Do nothing for unprintable characters.
+            # TODO: Handle Esc, F1-F12, arrow keys, home, end,
+            # insert,　del, pgup, pgdn
+            pass
+        else:
+            # Key is part of the password; display the mask character.
+            char = chr(key)
+            kana_word_builder.add_romaji(char)
+            sys.stdout.write(f"\r{prompt}{kana_word_builder.kana}")
+            sys.stdout.flush()
