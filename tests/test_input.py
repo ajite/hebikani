@@ -1,8 +1,4 @@
-from importlib import reload
-from unittest.mock import patch
-
 import hebikani.input as input_kana
-import pytest
 
 
 def test_kana_builder():
@@ -67,19 +63,3 @@ def test_add_char_to_builder():
 
     word.add_romaji("a")
     assert word.kana == "おはヨYおっは"
-
-
-@patch("hebikani.input.sys.platform", "win32")
-def test_windows_not_implemented():
-    """Test that the windows implementation is not implemented."""
-    with pytest.raises(NotImplementedError):
-        reload(input_kana)
-
-
-@patch("hebikani.input.sys.platform", "darwin")
-def test_osx_implemented():
-    """Test that the OSX implementation is implemented."""
-    try:
-        reload(input_kana)
-    except NotImplementedError:
-        pytest.fail("NotImplementedError raised")

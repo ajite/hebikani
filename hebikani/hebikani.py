@@ -14,11 +14,11 @@ import os
 import random
 import re
 import tempfile
-import threading
 import time
 from argparse import ArgumentParser, ArgumentTypeError, RawTextHelpFormatter
 from difflib import get_close_matches
 from io import BytesIO
+from platform import system
 from signal import SIGINT, signal
 from typing import List
 
@@ -40,6 +40,9 @@ from hebikani.typing import (
     SubjectObject,
     VoiceMode,
 )
+
+if system() == "Windows":
+    from mutagen.mp3 import MP3
 
 API_URL = "https://api.wanikani.com/v2/"
 MIN_NB_SUBJECTS = 1
@@ -133,7 +136,7 @@ def clear_terminal():
 def clear_audio_cache():
     """Clear the audio cache."""
     for audio_file in audio_cache.values():
-        audio_file.close()
+        os.unlink(audio_file.name)
 
 
 def handler(signal_received, frame):
@@ -321,16 +324,25 @@ class Audio(APIObject):
         """Download the audio if not cached."""
         if self.url not in audio_cache.keys():
             r = requests.get(self.url)
-            f = tempfile.NamedTemporaryFile(suffix=self.ext)
+            # We have to use delete is false otherwise we have permission
+            # error on windows
+            f = tempfile.NamedTemporaryFile(suffix=self.ext, delete=False)
             f.write(r.content)
             f.seek(0)
+            f.close()
+            # Remove metadata in windows
+            # It prevents playsound to playfile
+            if system() == "Windows":
+                mp3 = MP3(f.name)
+                mp3.delete()
+                mp3.save()
             audio_cache[self.url] = f
 
     def play(self):
         """Download and Play the audio."""
         self.download()
         f = audio_cache[self.url]
-        threading.Thread(target=playsound, args=(f.name,), daemon=True).start()
+        playsound(f.name, False)
 
 
 class Summary(APIObject):
