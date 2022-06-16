@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.2 (2022-06-16)
+### Fix
+* Roll back threading for audio ([#26](https://github.com/ajite/hebikani/issues/26)) ([`41e4238`](https://github.com/ajite/hebikani/commit/41e423817b9c8f8df1526b0651b4462ce10f8a44))
+
+### Documentation
+* Fix doc layout for pypi ([#25](https://github.com/ajite/hebikani/issues/25)) ([`485f6ea`](https://github.com/ajite/hebikani/commit/485f6ea177b413fa3abff361e13c53c36bffbe23))
+
 ## v1.3.1 (2022-06-16)
 ### Fix
 * **deps:** Change to python-romkan-ng ([#24](https://github.com/ajite/hebikani/issues/24)) ([`2fbfebb`](https://github.com/ajite/hebikani/commit/2fbfebb249bb39bc0f0039a6ce4620cae8eac60a))
