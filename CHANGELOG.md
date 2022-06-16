@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.1 (2022-06-16)
+### Fix
+* **deps:** Change to python-romkan-ng ([#24](https://github.com/ajite/hebikani/issues/24)) ([`2fbfebb`](https://github.com/ajite/hebikani/commit/2fbfebb249bb39bc0f0039a6ce4620cae8eac60a))
+
 ## v1.3.0 (2022-06-16)
 ### Feature
 * Add windows support ([#23](https://github.com/ajite/hebikani/issues/23)) ([`b9d95ed`](https://github.com/ajite/hebikani/commit/b9d95ed22d16f5b56577f15bdc5f2b56b3f087ad))
