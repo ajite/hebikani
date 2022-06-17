@@ -9,3 +9,4 @@ per-file-ignores =
 exclude =
     .venv
     build
+    dist

@@ -33,8 +33,14 @@ from playsound import playsound
 from hebikani import __version__
 from hebikani.graph import hist
 from hebikani.input import getch, input_kana
-from hebikani.typing import (AnswerType, Gender, HTTPMethod, QuestionType,
-                             SubjectObject, VoiceMode)
+from hebikani.typing import (
+    AnswerType,
+    Gender,
+    HTTPMethod,
+    QuestionType,
+    SubjectObject,
+    VoiceMode,
+)
 
 if system() == "Windows":
     from mutagen.mp3 import MP3
@@ -134,7 +140,7 @@ def clear_audio_cache():
         os.unlink(audio_file.name)
 
 
-def handler(signal_received, frame):
+def handler(signal_received=None, frame=None):
     """Terminate the program gracefully."""
     clear_terminal()
     print("Program was terminated by user.\n\n")
@@ -1144,9 +1150,16 @@ class ReviewSession(Session):
             )
 
         if question.question_type == QuestionType.MEANING:
-            inputed_answer = input(prompt)
+            inputed_answer = None
+            while not inputed_answer:
+                inputed_answer = input(prompt)
+                if not inputed_answer:
+                    print("\a")
         else:
-            inputed_answer = input_kana(prompt)
+            try:
+                inputed_answer = input_kana(prompt)
+            except KeyboardInterrupt:
+                handler()
 
         answer_type = question.solve(inputed_answer, self.client.options.hard_mode)
         return answer_type

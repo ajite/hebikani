@@ -87,6 +87,9 @@ else:  # macOS and Linux
 
         Args:
             use_raw_input (bool): Use raw input.
+
+        Returns:
+            str: The character.
         """
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
@@ -95,14 +98,19 @@ else:  # macOS and Linux
                 tty.setraw(sys.stdin.fileno())
             else:
                 tty.setcbreak(sys.stdin.fileno())
-            ch = sys.stdin.read(1)
+            ch = sys.stdin.buffer.raw.read(1)
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
         return ch
 
 
 def input_kana(prompt):
-    """Get user input to be converted to hiragana or katakana."""
+    """Get user input to be converted to hiragana or katakana.
+
+    Raises:
+        KeyboardInterrupt: If the user presses Ctrl-C.
+    """
     if not isinstance(prompt, str):
         raise TypeError(
             "prompt argument must be a str, not %s" % (type(prompt).__name__)
@@ -112,8 +120,12 @@ def input_kana(prompt):
     sys.stdout.write(prompt)
     sys.stdout.flush()
     while True:
-        key = ord(getch())
-        if key == 13:  # Enter key pressed.
+        ch = getch()
+        if ch == b"\x03":
+            raise KeyboardInterrupt
+
+        key = ord(ch)
+        if key == 13 and re.compile(r"^[ぁ-んァ-ン,]+$").match(kana_word_builder.kana):
             sys.stdout.write("\n")
             return kana_word_builder.kana
         # Backspace/Del key erases previous output.
@@ -125,10 +137,8 @@ def input_kana(prompt):
                 sys.stdout.flush()
 
         elif 0 <= key <= 31:
-            # Do nothing for unprintable characters.
-            # TODO: Handle Esc, F1-F12, arrow keys, home, end,
-            # insert,　del, pgup, pgdn
-            pass
+            sys.stdout.write(f"\r\x1b[K{prompt}{kana_word_builder.kana}\a")
+            sys.stdout.flush()
         else:
             # Key is part of the password; display the mask character.
             char = chr(key)
