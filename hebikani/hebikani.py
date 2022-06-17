@@ -9,7 +9,6 @@ Usage:
     >>> from hebikani import hebikani
     >>> client = hebikani.Client(API_KEY)
 """
-import atexit
 import datetime
 import os
 import random
@@ -34,8 +33,14 @@ from playsound import playsound
 from hebikani import __version__
 from hebikani.graph import hist
 from hebikani.input import getch, input_kana
-from hebikani.typing import (AnswerType, Gender, HTTPMethod, QuestionType,
-                             SubjectObject, VoiceMode)
+from hebikani.typing import (
+    AnswerType,
+    Gender,
+    HTTPMethod,
+    QuestionType,
+    SubjectObject,
+    VoiceMode,
+)
 
 if system() == "Windows":
     from mutagen.mp3 import MP3
@@ -1155,7 +1160,6 @@ class ReviewSession(Session):
                 inputed_answer = input_kana(prompt)
             except KeyboardInterrupt:
                 handler()
-
 
         answer_type = question.solve(inputed_answer, self.client.options.hard_mode)
         return answer_type
