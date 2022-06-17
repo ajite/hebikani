@@ -9,6 +9,7 @@ Usage:
     >>> from hebikani import hebikani
     >>> client = hebikani.Client(API_KEY)
 """
+import atexit
 import datetime
 import os
 import random
@@ -134,7 +135,7 @@ def clear_audio_cache():
         os.unlink(audio_file.name)
 
 
-def handler(signal_received, frame):
+def handler(signal_received=None, frame=None):
     """Terminate the program gracefully."""
     clear_terminal()
     print("Program was terminated by user.\n\n")
@@ -1144,9 +1145,17 @@ class ReviewSession(Session):
             )
 
         if question.question_type == QuestionType.MEANING:
-            inputed_answer = input(prompt)
+            inputed_answer = None
+            while not inputed_answer:
+                inputed_answer = input(prompt)
+                if not inputed_answer:
+                    print("\a")
         else:
-            inputed_answer = input_kana(prompt)
+            try:
+                inputed_answer = input_kana(prompt)
+            except KeyboardInterrupt:
+                handler()
+
 
         answer_type = question.solve(inputed_answer, self.client.options.hard_mode)
         return answer_type
