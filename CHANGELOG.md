@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.4.0 (2022-06-17)
+### Feature
+* Prevent sending empty answer and handle ctrl + c in reading ([#29](https://github.com/ajite/hebikani/issues/29)) ([`732b5c2`](https://github.com/ajite/hebikani/commit/732b5c2619da0b6a6942a857158a1875d1f756d8))
+
 ## v1.3.3 (2022-06-17)
 ### Fix
 * **deps:** Bump colorama from 0.4.4 to 0.4.5 ([#28](https://github.com/ajite/hebikani/issues/28)) ([`0836148`](https://github.com/ajite/hebikani/commit/083614899a15cf2ad0a1299502abd7f0db325f76))
