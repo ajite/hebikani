@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.3 (2022-06-17)
+### Fix
+* **deps:** Bump colorama from 0.4.4 to 0.4.5 ([#28](https://github.com/ajite/hebikani/issues/28)) ([`0836148`](https://github.com/ajite/hebikani/commit/083614899a15cf2ad0a1299502abd7f0db325f76))
+
 ## v1.3.2 (2022-06-16)
 ### Fix
 * Roll back threading for audio ([#26](https://github.com/ajite/hebikani/issues/26)) ([`41e4238`](https://github.com/ajite/hebikani/commit/41e423817b9c8f8df1526b0651b4462ce10f8a44))
