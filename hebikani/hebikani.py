@@ -1252,7 +1252,8 @@ class LessonSession(Session):
 
             # Only accept valid keys
             while key not in [10, 67, 68]:
-                key = ord(getch(use_raw_input=False))
+                chr = getch(use_raw_input=False)
+                key = ord(chr)
             if key == 67 or key == 10:  # Right
                 # sys.stdout.write("\n")
                 tab_index += 1
