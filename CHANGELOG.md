@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.4.1 (2022-06-22)
+### Fix
+* Lesson arrow navigation stopped working ([#31](https://github.com/ajite/hebikani/issues/31)) ([`d0746e0`](https://github.com/ajite/hebikani/commit/d0746e09daf91265eef15630199988ff60ee0078))
+
 ## v1.4.0 (2022-06-17)
 ### Feature
 * Prevent sending empty answer and handle ctrl + c in reading ([#29](https://github.com/ajite/hebikani/issues/29)) ([`732b5c2`](https://github.com/ajite/hebikani/commit/732b5c2619da0b6a6942a857158a1875d1f756d8))
