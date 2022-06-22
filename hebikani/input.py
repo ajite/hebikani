@@ -98,11 +98,11 @@ else:  # macOS and Linux
                 tty.setraw(sys.stdin.fileno())
             else:
                 tty.setcbreak(sys.stdin.fileno())
-            ch = sys.stdin.buffer.raw.read(1)
+            ch = sys.stdin.read(1)
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-        return ch
+        return ch.encode('utf-8')
 
 
 def input_kana(prompt):
