@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.4.2 (2022-06-30)
+### Fix
+* **deps:** Bump requests from 2.28.0 to 2.28.1 ([#32](https://github.com/ajite/hebikani/issues/32)) ([`81ef27c`](https://github.com/ajite/hebikani/commit/81ef27cb5309488a12b92cd2e16da47ad969e95b))
+
 ## v1.4.1 (2022-06-22)
 ### Fix
 * Lesson arrow navigation stopped working ([#31](https://github.com/ajite/hebikani/issues/31)) ([`d0746e0`](https://github.com/ajite/hebikani/commit/d0746e09daf91265eef15630199988ff60ee0078))
