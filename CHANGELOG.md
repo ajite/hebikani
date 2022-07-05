@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.4.3 (2022-07-05)
+### Fix
+* **deps:** Bump pillow from 9.1.1 to 9.2.0 ([#33](https://github.com/ajite/hebikani/issues/33)) ([`606eda4`](https://github.com/ajite/hebikani/commit/606eda4e7d11c7da9392364ff20d01c36b74998f))
+
 ## v1.4.2 (2022-06-30)
 ### Fix
 * **deps:** Bump requests from 2.28.0 to 2.28.1 ([#32](https://github.com/ajite/hebikani/issues/32)) ([`81ef27c`](https://github.com/ajite/hebikani/commit/81ef27cb5309488a12b92cd2e16da47ad969e95b))
