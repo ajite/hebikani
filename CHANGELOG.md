@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.4.4 (2022-07-19)
+### Fix
+* **deps:** Bump pygobject from 3.42.1 to 3.42.2 ([#34](https://github.com/ajite/hebikani/issues/34)) ([`2c5d559`](https://github.com/ajite/hebikani/commit/2c5d559c2e5fd984d65b7d5995709b34f34536a6))
+
 ## v1.4.3 (2022-07-05)
 ### Fix
 * **deps:** Bump pillow from 9.1.1 to 9.2.0 ([#33](https://github.com/ajite/hebikani/issues/33)) ([`606eda4`](https://github.com/ajite/hebikani/commit/606eda4e7d11c7da9392364ff20d01c36b74998f))
