@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.4.5 (2022-07-26)
+### Fix
+* **deps:** Bump sphinx from 5.0.2 to 5.1.0 ([#36](https://github.com/ajite/hebikani/issues/36)) ([`57cf58b`](https://github.com/ajite/hebikani/commit/57cf58b43a4dda1b7b50650389526f09191e78b9))
+
 ## v1.4.4 (2022-07-19)
 ### Fix
 * **deps:** Bump pygobject from 3.42.1 to 3.42.2 ([#34](https://github.com/ajite/hebikani/issues/34)) ([`2c5d559`](https://github.com/ajite/hebikani/commit/2c5d559c2e5fd984d65b7d5995709b34f34536a6))
