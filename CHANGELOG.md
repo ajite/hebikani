@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.5.0 (2022-07-27)
+### Feature
+* Improve reviews queue management ([#37](https://github.com/ajite/hebikani/issues/37)) ([`e127f30`](https://github.com/ajite/hebikani/commit/e127f30883898b1a4f52594592be19434545350f))
+
 ## v1.4.5 (2022-07-26)
 ### Fix
 * **deps:** Bump sphinx from 5.0.2 to 5.1.0 ([#36](https://github.com/ajite/hebikani/issues/36)) ([`57cf58b`](https://github.com/ajite/hebikani/commit/57cf58b43a4dda1b7b50650389526f09191e78b9))
