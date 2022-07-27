@@ -49,6 +49,9 @@ API_URL = "https://api.wanikani.com/v2/"
 MIN_NB_SUBJECTS = 1
 MAX_NB_SUJECTS = 500
 
+# Number of subjects inside a session queue at once.
+MAX_QUEUE_SIZE = 10
+
 # Ratio when using difflib.get_close_matches()
 RATIO_CLOSE_MATCHES = 0.8
 
@@ -975,6 +978,42 @@ class Session:
         return audio
 
 
+class QuestionQueue(list):
+    """Handle queue."""
+
+    def __init__(self) -> None:
+        """Initialize the queue."""
+        super().__init__()
+
+    def shuffle(self):
+        """Shuffle the queue.
+
+        TODO implement logic to implement reordering scripts.
+        The reordering script should be activated and configured
+        in the client options.
+        """
+        random.shuffle(self)
+
+    def rebuild(self, subjects: List[Subject]):
+        """Build the queue. Add correct number of questions to the queue.
+        At the initialisation, we add MAX_QUEUE_SIZE or USER LIMIT
+        questions to the queue.
+
+        Args:
+            subjects (List[Subject]): The subjects.
+        """
+        queue_subjects = set([question.subject for question in self])
+        i = len(queue_subjects)
+
+        while i < MAX_QUEUE_SIZE and len(subjects) > 0:
+            subject = subjects.pop(0)
+            self.extend(subject.questions)
+            i += 1
+
+        self.nb_session_subjects = i
+        self.shuffle()
+
+
 class ReviewSession(Session):
     """A review session."""
 
@@ -988,27 +1027,15 @@ class ReviewSession(Session):
             subjects (List[Subject]): The subjects.
         """
         super().__init__(client, subjects)
+        self.subjects = self.subjects[: client.options.limit]
         self.from_lesson = from_lesson
-        self.queue = []
-        self.nb_subjects = 0
-        self.build_queue(subjects)
-
-    def build_queue(self, subjects: List[Subject]):
-        """Build the queue.
-
-        Args:
-            subjects (List[Subject]): A list of subjects.
-        """
-        for subject in subjects:
-            self.queue.extend(subject.questions)
-            self.nb_subjects += 1
-            if self.nb_subjects >= self.client.options.limit:
-                break
-        self.shuffle()
-
-    def shuffle(self):
-        """Shuffle."""
-        random.shuffle(self.queue)
+        self.nb_subjects = len(self.subjects)
+        self.nb_session_subjects = 0
+        self.nb_correct_answers = 0
+        self.nb_incorrect_answers = 0  # Multiple error count multiple times.
+        self.nb_completed_subjects = 0
+        self.nb_session_completed_subjects = 0
+        self.queue = QuestionQueue()
 
     def start(self):
         """Start the reviews.
@@ -1019,10 +1046,6 @@ class ReviewSession(Session):
         Otherwise we will show the user the correct answer, shuffle the deck
         and move on to the next card.
         """
-
-        nb_correct_answers = 0
-        nb_incorrect_answers = 0  # Multiple error count multiple times.
-        nb_completed_subjects = 0
 
         clear_terminal()
 
@@ -1037,18 +1060,21 @@ class ReviewSession(Session):
 
         input("Press enter to start the session...")
         """Start the review session."""
+
+        self.queue.rebuild(self.subjects)
+
         while self.queue:
-            question = self.queue[0]
+            question = self.queue.pop(0)
             clear_terminal()
 
-            total_answers = nb_incorrect_answers + nb_correct_answers
+            total_answers = self.nb_incorrect_answers + self.nb_correct_answers
             correct_rate = "X"
             if total_answers > 0:
                 correct_rate = (
-                    str(round(nb_correct_answers * 100 / total_answers, 2)) + "%"
+                    str(round(self.nb_correct_answers * 100 / total_answers, 2)) + "%"
                 )
             print(
-                f"Review {nb_completed_subjects}/{self.nb_subjects}",
+                f"Total Reviews {self.nb_completed_subjects}/{self.nb_subjects}",
                 f"- {correct_rate}:\n",
             )
             print(question.subject.characters + "\n")
@@ -1061,68 +1087,98 @@ class ReviewSession(Session):
             """
             while answer_type is None or answer_type == AnswerType.INEXACT:
                 answer_type = self.ask_answer(question)
-                # If the user answers correctly, we remove the card from the deck
-                if answer_type == AnswerType.CORRECT:
-                    print("\nCorrect!")
-                    nb_correct_answers += 1
-                    del self.queue[0]
-                # If the user is a bit off, we show the correct answer and ask
-                # to validate his answer
-                elif answer_type == AnswerType.A_BIT_OFF:
-                    print(
-                        "Your answer is a bit off.",
-                        f"The correct answer is: {question.answer_values}",
-                    )
-                    if input("Do you want to validate your answer? (Y/n) ") in [
-                        "n",
-                        "N",
-                    ]:
-                        nb_incorrect_answers += 1
-                        question.add_wrong_answer()
-                        self.shuffle()
-                    else:
-                        nb_correct_answers += 1
-                        question.solved = True
-                        del self.queue[0]
+                self.process_answer(question, answer_type)
 
-                # If the user answers another reading, we ask the user to correct it
-                elif answer_type == AnswerType.INEXACT:
-                    print(
-                        "\nTry again. We are looking for the",
-                        f"{question.primary.type}.",
-                    )
-                # If the user answers incorrectly, we show the correct answer
-                else:
-                    nb_incorrect_answers += 1
-                    print(
-                        "\nWrong ! The correct answer is:",
-                        question.answer_values,
-                    )
-
-                    if self.client.options.display_mnemonics:
-                        print(f"\nMnemonic: {wanikani_tag_to_color(question.mnemonic)}")
-                    self.shuffle()
-
-            subject = question.subject
-            if subject.solved:
-                self.nb_subjects -= 1
-                nb_completed_subjects += 1
-                if self.from_lesson:
-                    AssignmentUpdate(self.client, subject.id).save()
-                else:
-                    ReviewUpdate(
-                        self.client,
-                        subject.id,
-                        subject.meaning_question.wrong_answer_count,
-                        subject.reading_question.wrong_answer_count
-                        if subject.reading_question
-                        else 0,
-                    ).save()
+            self.process_subject(question.subject)
 
             self.ask_audio(question)
             input("\nPress enter to continue...")
 
         print("\n\nReviews are done!")
+
+    def process_answer(self, question: Question, answer_type: AnswerType):
+        """Process the answer.
+
+        Args:
+            question (Question): The question.
+            answer_type (AnswerType): The answer type.
+        """
+        # If the user answers correctly, we remove the card from the deck
+        if answer_type == AnswerType.CORRECT:
+            print("\nCorrect!")
+            self.nb_correct_answers += 1
+
+        # If the user is a bit off, we show the correct answer and ask
+        # to validate his answer
+        elif answer_type == AnswerType.A_BIT_OFF:
+            print(
+                "Your answer is a bit off.",
+                f"The correct answer is: {question.answer_values}",
+            )
+            if input("Do you want to validate your answer? (Y/n) ") in [
+                "n",
+                "N",
+            ]:
+                self.nb_incorrect_answers += 1
+                question.add_wrong_answer()
+                self.queue.shuffle()
+
+                # Add the question at the end of the queue
+                # So we don't have it twice in a row.
+                self.queue.append(question)
+            else:
+                self.nb_correct_answers += 1
+                question.solved = True
+
+        # If the user answers another reading, we ask the user to correct it
+        elif answer_type == AnswerType.INEXACT:
+            print(
+                "\nTry again. We are looking for the",
+                f"{question.primary.type}.",
+            )
+        # If the user answers incorrectly, we show the correct answer
+        else:
+            self.nb_incorrect_answers += 1
+            print(
+                "\nWrong ! The correct answer is:",
+                question.answer_values,
+            )
+
+            if self.client.options.display_mnemonics:
+                print(f"\nMnemonic: {wanikani_tag_to_color(question.mnemonic)}")
+
+            self.queue.shuffle()
+            # Add the question at the end of the queue
+            # So we don't have it twice in a row.
+            self.queue.append(question)
+
+    def process_subject(self, subject: Subject):
+        """Process the subject. Set it as solved if the user answered
+        all the questions correctly.
+
+        Args:
+            subject (Subject): The subject.
+        """
+        if subject.solved:
+            self.nb_subjects -= 1
+            self.nb_completed_subjects += 1
+            self.nb_session_completed_subjects += 1
+            if self.from_lesson:
+                AssignmentUpdate(self.client, subject.id).save()
+            else:
+                ReviewUpdate(
+                    self.client,
+                    subject.id,
+                    subject.meaning_question.wrong_answer_count,
+                    subject.reading_question.wrong_answer_count
+                    if subject.reading_question
+                    else 0,
+                ).save()
+
+                # When removing an item from the queue it's important
+                # to rebuild the queue.
+                # It's not needed for lessons.
+                self.queue.rebuild(self.subjects)
 
     def ask_answer(self, question: Question):
         """Ask the user for an answer.
@@ -1447,7 +1503,7 @@ def main():
 
     parser.add_argument("--dry-run", action="store_true", default=False, help=text)
 
-    text = "Number of subjects to review per session. (default: 50,  max: 500)"
+    text = "Number of subjects to review per session. (default: 50, max: 500)"
 
     parser.add_argument("--limit", type=range_int_type, default=50, help=text)
 
