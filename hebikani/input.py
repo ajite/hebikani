@@ -102,7 +102,7 @@ else:  # macOS and Linux
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-        return ch.encode('utf-8')
+        return ch.encode("utf-8")
 
 
 def input_kana(prompt):
@@ -125,7 +125,7 @@ def input_kana(prompt):
             raise KeyboardInterrupt
 
         key = ord(ch)
-        if key == 13 and re.compile(r"^[ぁ-んァ-ン,]+$").match(kana_word_builder.kana):
+        if key == 13 and re.compile(r"^[ぁ-んァ-ン,ー]+$").match(kana_word_builder.kana):
             sys.stdout.write("\n")
             return kana_word_builder.kana
         # Backspace/Del key erases previous output.

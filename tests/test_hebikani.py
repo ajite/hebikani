@@ -204,7 +204,7 @@ def test_review_session_audio_mode(audio_play_mock, input_mock):
     options = ClientOptions(voice_mode=VoiceMode.FEMALE)
     client = Client(API_KEY, options)
     session = ReviewSession(client, [subject] * 10)
-
+    session.queue.rebuild(session.subjects)
     # Test only with reading card type
     assert len(session.queue) == 20
 
@@ -418,6 +418,7 @@ def test_review_session():
     subject = Subject(vocabulary_subject)
     client = Client(API_KEY)
     session = ReviewSession(client, [subject] * 10)
+    session.queue.rebuild(session.subjects)
     assert len(session.queue) == 20
     assert session.nb_subjects == 10
 
