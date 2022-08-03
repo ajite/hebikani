@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.6.0 (2022-08-03)
+### Feature
+* Add double check feature. It allows you to set a wrong answer t… ([#39](https://github.com/ajite/hebikani/issues/39)) ([`ad7dc9b`](https://github.com/ajite/hebikani/commit/ad7dc9bfe645319496fa1df3faceac7283ea8f27))
+
 ## v1.5.0 (2022-07-27)
 ### Feature
 * Improve reviews queue management ([#37](https://github.com/ajite/hebikani/issues/37)) ([`e127f30`](https://github.com/ajite/hebikani/commit/e127f30883898b1a4f52594592be19434545350f))
