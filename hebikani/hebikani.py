@@ -190,6 +190,7 @@ class ClientOptions:
         dry_run: bool = False,
         limit: int = 50,
         display_mnemonics: bool = False,
+        double_check: bool = False,
     ):
         """Initialize the client options.
 
@@ -209,6 +210,7 @@ class ClientOptions:
         self.dry_run = dry_run
         self.limit = limit
         self.display_mnemonics = display_mnemonics
+        self.double_check = double_check
 
 
 class Client:
@@ -1138,19 +1140,31 @@ class ReviewSession(Session):
             )
         # If the user answers incorrectly, we show the correct answer
         else:
-            self.nb_incorrect_answers += 1
             print(
                 "\nWrong ! The correct answer is:",
                 question.answer_values,
             )
 
-            if self.client.options.display_mnemonics:
-                print(f"\nMnemonic: {wanikani_tag_to_color(question.mnemonic)}")
+            if (
+                question.question_type == QuestionType.MEANING
+                and self.client.options.double_check
+            ):
+                answer_was_correct = input("My answer was correct [y/N] ")
+            else:
+                answer_was_correct = "N"
 
-            self.queue.shuffle()
-            # Add the question at the end of the queue
-            # So we don't have it twice in a row.
-            self.queue.append(question)
+            if not answer_was_correct in ["y", "Y"]:
+                self.nb_incorrect_answers += 1
+                self.queue.shuffle()
+                # Add the question at the end of the queue
+                # So we don't have it twice in a row.
+                self.queue.append(question)
+                if self.client.options.display_mnemonics:
+                    print(f"\nMnemonic: {wanikani_tag_to_color(question.mnemonic)}")
+            else:
+                print("Question was changed to correct")
+                self.nb_correct_answers += 1
+                question.solved = True
 
     def process_subject(self, subject: Subject):
         """Process the subject. Set it as solved if the user answered
@@ -1511,6 +1525,14 @@ def main():
 
     parser.add_argument("--mnemonics", action="store_true", default=False, help=text)
 
+    text = (
+        "Give you the chance the answer as correct for meaning (only). (default: False)"
+    )
+
+    parser.add_argument(
+        "--double-check", "--db", action="store_true", default=False, help=text
+    )
+
     # Extract the arguments from the parser.
     args = parser.parse_args()
 
@@ -1526,6 +1548,7 @@ def main():
         dry_run=args.dry_run,
         limit=args.limit,
         display_mnemonics=args.mnemonics,
+        double_check=args.double_check
     )
 
     client = Client(args.api_key, options=client_options)
