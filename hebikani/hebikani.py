@@ -1153,7 +1153,7 @@ class ReviewSession(Session):
             else:
                 answer_was_correct = "N"
 
-            if not answer_was_correct in ["y", "Y"]:
+            if answer_was_correct not in ["y", "Y"]:
                 self.nb_incorrect_answers += 1
                 self.queue.shuffle()
                 # Add the question at the end of the queue
