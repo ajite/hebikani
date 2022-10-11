@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.6.1 (2022-10-11)
+### Fix
+* **deps:** Bump pyobjc from 8.5 to 8.5.1 ([#40](https://github.com/ajite/hebikani/issues/40)) ([`4406acf`](https://github.com/ajite/hebikani/commit/4406acf009291a0a7b47202ae5f24c2bf8ec7758))
+
 ## v1.6.0 (2022-08-03)
 ### Feature
 * Add double check feature. It allows you to set a wrong answer t… ([#39](https://github.com/ajite/hebikani/issues/39)) ([`ad7dc9b`](https://github.com/ajite/hebikani/commit/ad7dc9bfe645319496fa1df3faceac7283ea8f27))
