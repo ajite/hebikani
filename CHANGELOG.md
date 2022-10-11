@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.6.2 (2022-10-11)
+### Fix
+* **deps:** Bump mutagen from 1.45.1 to 1.46.0 ([#41](https://github.com/ajite/hebikani/issues/41)) ([`645dc74`](https://github.com/ajite/hebikani/commit/645dc74fc0f5532991f92e352872a00117442022))
+
 ## v1.6.1 (2022-10-11)
 ### Fix
 * **deps:** Bump pyobjc from 8.5 to 8.5.1 ([#40](https://github.com/ajite/hebikani/issues/40)) ([`4406acf`](https://github.com/ajite/hebikani/commit/4406acf009291a0a7b47202ae5f24c2bf8ec7758))
