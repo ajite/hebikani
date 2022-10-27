@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.6.3 (2022-10-27)
+### Fix
+* **deps:** Bump colorama from 0.4.5 to 0.4.6 ([#42](https://github.com/ajite/hebikani/issues/42)) ([`d090f3a`](https://github.com/ajite/hebikani/commit/d090f3a7540475ae153d9f21c669b88b9cc70f17))
+
 ## v1.6.2 (2022-10-11)
 ### Fix
 * **deps:** Bump mutagen from 1.45.1 to 1.46.0 ([#41](https://github.com/ajite/hebikani/issues/41)) ([`645dc74`](https://github.com/ajite/hebikani/commit/645dc74fc0f5532991f92e352872a00117442022))
