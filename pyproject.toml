@@ -13,7 +13,7 @@ python = "^3.9"
 requests = "^2.27.1"
 ascii-magic = "^1.6"
 Pillow = "^9.1.0"
-pyobjc = {version = "^8.5", platform = "darwin"}
+pyobjc = {version = ">=8.5,<10.0", platform = "darwin"}
 colorama = "^0.4.4"
 PyGObject = {version = "^3.42.1", platform = "linux"}
 playsound = "1.2.2"
