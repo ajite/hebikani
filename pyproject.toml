@@ -26,7 +26,7 @@ flake8 = "^4.0.1"
 black = "^22.3.0"
 Sphinx = "^5.1.1"
 sphinxcontrib-napoleon = "^0.7"
-sphinx-rtd-theme = "^1.0.0"
+sphinx-rtd-theme = "^1.2.0"
 freezegun = "^1.2.1"
 coverage = "^6.4"
 
