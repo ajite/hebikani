@@ -11,7 +11,7 @@ repository = "https://github.com/ajite/hebikani"
 [tool.poetry.dependencies]
 python = "^3.9"
 requests = "^2.27.1"
-ascii-magic = "^1.6"
+ascii-magic = ">=1.6,<3.0"
 Pillow = "^9.1.0"
 pyobjc = {version = ">=8.5,<10.0", platform = "darwin"}
 colorama = "^0.4.4"
