@@ -26,6 +26,7 @@ from typing import List
 import ascii_magic
 import requests
 import romkan
+from cairosvg import svg2png
 from colorama import Back, Fore, Style
 from PIL import Image, ImageOps
 from playsound import playsound
@@ -96,7 +97,17 @@ def url_to_ascii(url: str):
         url (str): The url of the image we want to convert to ascii art.
     """
     request = requests.get(url)
-    downloaded_image_file = BytesIO(request.content)
+
+    # Convert svg to png
+    downloaded_image_file = BytesIO()
+
+    # CairoSVG did not like the #000 color in the svg
+    content = (
+        request.content.decode("utf-8").replace("#000", "rgb(0,0,0)").encode("utf-8")
+    )
+
+    svg2png(bytestring=content, write_to=downloaded_image_file)
+
     downloaded_image = Image.open(downloaded_image_file)
 
     # Downloaded image mode is LA.
@@ -106,6 +117,9 @@ def url_to_ascii(url: str):
     image = ImageOps.invert(image.convert("RGB"))
 
     ascii_art = ascii_magic.from_image(image, columns=64)
+    f = open("ascii.txt", "w")
+    f.write(ascii_art)
+    f.close()
     return ascii_art
 
 
@@ -749,8 +763,7 @@ class Subject(APIObject):
         # Get the image URL. We want the smallest png.
         for image in self.data["data"]["character_images"]:
             content_type = image.get("content_type")
-            dimensions = image.get("metadata", {}).get("dimensions")
-            if content_type == "image/png" and dimensions == "32x32":
+            if content_type == "image/svg+xml":
                 url = image.get("url")
                 break
 
@@ -1149,6 +1162,7 @@ class ReviewSession(Session):
                 question.question_type == QuestionType.MEANING
                 and self.client.options.double_check
             ):
+                time.sleep(0.5)
                 answer_was_correct = input("My answer was correct [y/N] ")
             else:
                 answer_was_correct = "N"
@@ -1548,7 +1562,7 @@ def main():
         dry_run=args.dry_run,
         limit=args.limit,
         display_mnemonics=args.mnemonics,
-        double_check=args.double_check
+        double_check=args.double_check,
     )
 
     client = Client(args.api_key, options=client_options)
