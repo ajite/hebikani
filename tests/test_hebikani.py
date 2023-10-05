@@ -156,8 +156,8 @@ def test_ascii_art(mock_request_get):
     """Check if the ASCII art is correctly displayed."""
     """Test the ascii art creation when no utf character."""
 
-    # 32x32 png image sample from WaniKani API
-    img_f = open(os.path.join(os.path.dirname(__file__), "assets/no_utf.png"), "rb")
+    # svg image sample from WaniKani API
+    img_f = open(os.path.join(os.path.dirname(__file__), "assets/no_utf.svg"), "rb")
 
     # the image in ascii the desired ASCII format
     ascii_f = open(os.path.join(os.path.dirname(__file__), "assets/no_utf.txt"), "r")

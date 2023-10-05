@@ -19,6 +19,7 @@ PyGObject = {version = "^3.42.1", platform = "linux"}
 playsound = "1.2.2"
 mutagen = {version = "^1.45.1", platform = "win32"}
 python-romkan-ng = "^0.3.0"
+cairosvg = "^2.7.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.2"
