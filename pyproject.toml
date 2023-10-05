@@ -41,9 +41,10 @@ hebikani = 'hebikani.hebikani:main'
 [tool.semantic_release]
 version_variable = [
     "hebikani/__init__.py:__version__",
-    "pyproject.toml:version"
+]
+version_toml = [
+    "pyproject.toml:tool.poetry.version",
 ]
 branch = "main"
-upload_to_pypi = true
 upload_to_release = true
 build_command = "pip install poetry && poetry build"
