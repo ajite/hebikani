@@ -64,6 +64,14 @@ To start a review session in hard mode with audio and a limited number of review
 
     hebikani reviews --hard --autoplay --limit 10
 
+Download all the subjects in local:
+
+.. code-block:: bash
+
+    hebikani download
+
+You may use the same command to update the database. It should only download the differences.
+
 DEVELOPMENT
 -----------
 This project uses `Poetry <https://python-poetry.org/docs/>`_.

@@ -16,12 +16,14 @@ import re
 import tempfile
 import threading
 import time
+from pytz import utc
 from argparse import ArgumentParser, ArgumentTypeError, RawTextHelpFormatter
 from difflib import get_close_matches
 from io import BytesIO
 from platform import system
 from signal import SIGINT, signal
 from typing import List
+
 
 import ascii_magic
 import requests
@@ -42,6 +44,8 @@ from hebikani.typing import (
     SubjectObject,
     VoiceMode,
 )
+from hebikani.settings import load_settings, save_settings, setting_creation_date
+from halo import Halo
 
 if system() == "Windows":
     from mutagen.mp3 import MP3
@@ -60,7 +64,9 @@ RATIO_CLOSE_MATCHES = 0.8
 audio_cache = {}
 
 
-def api_request(method: HTTPMethod, endpoint: str, api_key: str, json=None) -> dict:
+def api_request(
+    method: HTTPMethod, endpoint: str, api_key: str, json=None, modified_since=None
+) -> dict:
     """Make an API request with correct headers.
 
     Args:
@@ -68,6 +74,8 @@ def api_request(method: HTTPMethod, endpoint: str, api_key: str, json=None) -> d
         endpoint (str): The endpoint to make the request to.
         api_key (str): The API key to use.
         json (dict): The data to send.
+        modified_since (datetime.datetime):
+            The date to use for the If-Modified-Since header.
 
     Returns:
         dict: The response from the API.
@@ -75,8 +83,18 @@ def api_request(method: HTTPMethod, endpoint: str, api_key: str, json=None) -> d
     Raises:
         ValueError: If the method is not a valid HTTP method.
     """
-    url = API_URL + endpoint
+    url = endpoint
+    if API_URL not in endpoint:
+        url = API_URL + endpoint
     headers = {"Authorization": f"Bearer {api_key}"}
+
+    if modified_since:
+        # Convert to UTC
+        modified_since = modified_since.astimezone(utc)
+        headers["If-Modified-Since"] = modified_since.strftime(
+            "%a, %d %b %Y %H:%M:%S GMT"
+        )
+        headers["If-Modified-Since"] = "Fri, 9 Jul 2021 11:11:11 GMT"
     if method == HTTPMethod.GET:
         resp = requests.get(url, headers=headers)
     elif method == HTTPMethod.POST or method == HTTPMethod.PUT:
@@ -86,7 +104,8 @@ def api_request(method: HTTPMethod, endpoint: str, api_key: str, json=None) -> d
         raise ValueError("Invalid HTTP method")
     if resp.status_code == 401:
         raise ValueError("Invalid API Key")
-
+    if resp.status_code == 304:
+        return None
     return resp.json()
 
 
@@ -192,6 +211,25 @@ def utc_to_local(utc: datetime.datetime) -> datetime.datetime:
     return utc + offset
 
 
+class Cache:
+    subjects = {}
+    client = None
+
+    @classmethod
+    def get_subject(cls, subject_id: int):
+        subject = cls.subjects.get(subject_id)
+        if not subject and cls.client:
+            cls.client._subject_per_ids([subject_id])
+            subject = cls.subjects.get(subject_id)
+        if not subject:
+            raise Exception
+        return subject
+
+    @classmethod
+    def set_subject(cls, subject):
+        cls.subjects[subject.id] = subject
+
+
 class ClientOptions:
     """Client options."""
 
@@ -205,6 +243,7 @@ class ClientOptions:
         limit: int = 50,
         display_mnemonics: bool = False,
         double_check: bool = False,
+        test_ids: list = None,
     ):
         """Initialize the client options.
 
@@ -225,6 +264,7 @@ class ClientOptions:
         self.limit = limit
         self.display_mnemonics = display_mnemonics
         self.double_check = double_check
+        self.test_ids = test_ids
 
 
 class Client:
@@ -244,7 +284,21 @@ class Client:
         """
         self.api_key = api_key
         self.options = options or ClientOptions()
-        self._subject_cache = {}
+        # Cache the client to use it in external class
+        Cache.client = self
+
+    def _load_subject_cache(self):
+        """Load the subject cache."""
+        subjects = load_settings("subjects.json")
+        if subjects:
+            spinner = Halo(text="Loading cache", spinner="dots")
+            spinner.start()
+            for subject in subjects:
+                Cache.set_subject(Subject(subject))
+            spinner.stop()
+            print("Cache loaded.")
+        else:
+            print("No subject cache found.")
 
     def summary(self):
         """Get a summary of the user's current progress."""
@@ -257,15 +311,81 @@ class Client:
         Args:
             subject_id (int): The subject ID to get reviews for.
         """
-        subjects = self._subject_per_ids(self.summary().reviews)
+        self._load_subject_cache()
+        subject_ids = (
+            self.options.test_ids if self.options.test_ids else self.summary().reviews
+        )
+        subjects = self._subject_per_ids(subject_ids)
         session = ReviewSession(self, subjects)
         session.start()
 
     def lessons(self):
         """Get lessons from the WaniKani API."""
-        subjects = self._subject_per_ids(self.summary().lessons)
+        self._load_subject_cache()
+        subject_ids = (
+            self.options.test_ids if self.options.test_ids else self.summary().lessons
+        )
+        subjects = self._subject_per_ids(subject_ids)
         session = LessonSession(self, subjects)
         session.start()
+
+    def download(self):
+        """Download data from the WaniKani API to have them offline."""
+        # Check if the data is already cached
+        subjects = load_settings("subjects.json")
+        creation_date = setting_creation_date("subjects.json")
+        if creation_date:
+            date_str = creation_date.strftime("%a, %d %b %Y %H:%M:%S")
+            print(
+                f"Subject data already cached. (Created on {date_str}).\n"
+                "Only downloading new data."
+            )
+
+        spinner = Halo(text="Downloading", spinner="dots")
+        spinner.start()
+        subject_data = api_request(
+            HTTPMethod.GET, "subjects", self.api_key, modified_since=creation_date
+        )
+        if not subject_data:
+            spinner.stop()
+            print("No new data to download.")
+            return
+
+        new_subjects = [d for d in subject_data["data"]]
+        while subject_data["pages"]["next_url"]:
+            subject_data = api_request(
+                HTTPMethod.GET, subject_data["pages"]["next_url"], self.api_key
+            )
+            new_subjects += [d for d in subject_data["data"]]
+            spinner.text = f"Downloading {len(new_subjects)} subjects"
+
+        spinner.stop()
+
+        print(f"Downloaded {len(new_subjects)} subjects.")
+
+        if not subjects:
+            subjects = new_subjects
+        else:
+            # Replace old data when new data is available
+            nb_added = 0
+            nb_modified = 0
+            # Create a dict with the subject ids as keys
+            # To avoid looping over the list of subjects
+            subject_ids_index = {s["id"]: i for i, s in enumerate(subjects)}
+            for new_subject in new_subjects:
+                i = subject_ids_index.get(new_subject["id"])
+                if i is None:
+                    subjects.append(new_subject)
+                    nb_added += 1
+                else:
+                    subjects[i] = new_subject
+                    nb_modified += 1
+
+            print(f"Added {nb_added} subjects.")
+            print(f"Modified {nb_modified} subjects.")
+
+        # Save the data
+        save_settings("subjects.json", subjects)
 
     def _subject_per_ids(self, subject_ids: List[int]):
         """Get subjects by ID.
@@ -274,16 +394,16 @@ class Client:
             subject_ids (List[int]): A list of subject IDs to get.
         """
         # Remove subjects that are already in the cache
-        missing_ids = list(set(subject_ids) - set(self._subject_cache.keys()))
+        missing_ids = list(set(subject_ids) - set(Cache.subjects.keys()))
         if missing_ids:
             ids = ",".join(str(i) for i in missing_ids)
             data = api_request(HTTPMethod.GET, f"subjects?ids={ids}", self.api_key)
 
             for data in data["data"]:
                 subject = Subject(data)
-                self._subject_cache[subject.id] = subject
+                Cache.set_subject(subject)
 
-        return [self._subject_cache[i] for i in subject_ids]
+        return [Cache.get_subject(i) for i in subject_ids]
 
     def _assignment_id_per_subject_id(self, subject_id: int) -> int:
         """Get assignments by subject ID.
@@ -486,7 +606,7 @@ class Answer(APIObject):
         """Get the type of the answer (onyomi, kunyomi, nanori)."""
         # We do not need to worry since meaning questions do not use
         # this attribute. It is better to use GET in case.
-        return self.data.get("type", "")
+        return self.data.get("type", "vocabulary")
 
 
 class AnswerManager:
@@ -708,6 +828,7 @@ class Subject(APIObject):
     def __init__(self, data):
         super().__init__(data)
         self._readings = None
+        self._auxiliary_readings = None
         self._meanings = None
         self._meaning_question = Question(self, QuestionType.MEANING)
         self._reading_question = None
@@ -783,6 +904,20 @@ class Subject(APIObject):
                 ]
             )
         return self._readings
+
+    @property
+    def auxiliary_readings(self):
+        # Only works for vocabulary. We want to set kanji answer as inexact
+        if (
+            self.object == SubjectObject.VOCABULARY
+            and len(self.characters) == 1
+            and self._auxiliary_readings is None
+        ):
+            component_subject_ids = self.data["data"]["component_subject_ids"]
+            kanji = Cache.get_subject(component_subject_ids[0])
+            if kanji:
+                self._auxiliary_readings = kanji.readings
+        return self._auxiliary_readings
 
     @property
     def meanings(self):
@@ -887,6 +1022,16 @@ class Question:
         _answer = None
         if self.question_type == QuestionType.READING:
             _answer = self.subject.readings.solve(inputed_answer, hard_mode)
+            if (
+                not hard_mode
+                and _answer == AnswerType.INCORRECT
+                and self.subject.auxiliary_readings
+            ):
+                # When not in hard mode check if we used kanji meaning on vocabulary
+                _answer = self.subject.auxiliary_readings.solve(inputed_answer)
+                _answer = (
+                    AnswerType.INEXACT if _answer == AnswerType.CORRECT else _answer
+                )
         else:
             _answer = self.subject.meanings.solve(inputed_answer)
 
@@ -1548,6 +1693,10 @@ def main():
     )
 
     # Extract the arguments from the parser.
+
+    text = "Test a specific lessons or reviews using the subject ids. E.g (41,50,200)"
+    parser.add_argument("--test-ids", help=text, default="")
+
     args = parser.parse_args()
 
     # Make sure that we've got an API key and that a mode has been set.
@@ -1559,10 +1708,11 @@ def main():
         silent=args.silent,
         voice_mode=args.voice,
         hard_mode=args.hard,
-        dry_run=args.dry_run,
+        dry_run=True if args.test_ids else args.dry_run,
         limit=args.limit,
         display_mnemonics=args.mnemonics,
         double_check=args.double_check,
+        test_ids=list(map(int, args.test_ids.split(","))) if args.test_ids else [],
     )
 
     client = Client(args.api_key, options=client_options)
