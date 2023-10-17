@@ -2,6 +2,13 @@
 
 
 
+## v1.7.2 (2023-10-17)
+
+### Fix
+
+* fix: listen to audio display + ci (#62) ([`14f4bb0`](https://github.com/ajite/hebikani/commit/14f4bb0f9dfe9738beed8523d58013bf7611ce2e))
+
+
 ## v1.7.1 (2023-10-17)
 
 ### Fix
