@@ -2,6 +2,20 @@
 
 
 
+## v1.7.0 (2023-10-17)
+
+### Ci
+
+* ci: pyproject semantic 8 (#59) ([`901073d`](https://github.com/ajite/hebikani/commit/901073da89b6876fc44fa9862323b1a4e2f19085))
+
+### Feature
+
+* feat: add subject caching, improve question reading system (#60)
+
+User can download subject in cache using hebikani --download
+User can use kanji reading on vocabulary, the answers will be set as inexact as opposed to incorrect. ([`0a5b294`](https://github.com/ajite/hebikani/commit/0a5b2949b061fbaaa9e6a6b6d8d98b04a254ac14))
+
+
 ## v1.6.4 (2023-10-05)
 
 ### Ci

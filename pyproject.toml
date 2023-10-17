@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hebikani"
-version = "1.6.3"
+version = "1.7.0"
 description = "WaniKani command line interface"
 authors = ["Augustin <ajitekun@gmail.com>"]
 readme = "README.rst"
