@@ -900,7 +900,16 @@ class Subject(APIObject):
             self._readings = AnswerManager(
                 [
                     Answer(answer, QuestionType.READING)
-                    for answer in self.data["data"]["readings"]
+                    for answer in self.data["data"].get(
+                        "readings",
+                        [
+                            {
+                                "primary": True,
+                                "reading": self.data["data"]["characters"],
+                                "accepted_answer": True,
+                            }
+                        ],
+                    )
                 ]
             )
         return self._readings
