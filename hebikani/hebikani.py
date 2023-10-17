@@ -1303,7 +1303,7 @@ class ReviewSession(Session):
         elif answer_type == AnswerType.INEXACT:
             print(
                 "\nTry again. We are looking for the",
-                f"{question.primary.type}.",
+                f"{question.primary.type}.\n",
             )
         # If the user answers incorrectly, we show the correct answer
         else:
@@ -1414,7 +1414,7 @@ class ReviewSession(Session):
             and question.question_type == QuestionType.READING
             and (
                 self.client.options.autoplay
-                or input("Would you like to hear the audio? [y/N] ") in ["y", "Y"]
+                or input("\nWould you like to hear the audio? [y/N] ") in ["y", "Y"]
             )
         ):
             audio = self.select_audio(question.subject.audios)
