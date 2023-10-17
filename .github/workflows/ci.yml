@@ -75,6 +75,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
   pypi:
     needs: Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, 'chore(release):')
+    concurrency: release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
