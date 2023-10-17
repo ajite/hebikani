@@ -11,6 +11,7 @@ from hebikani.hebikani import (
     MAX_NB_SUJECTS,
     MIN_NB_SUBJECTS,
     AnswerManager,
+    Cache,
     Client,
     ClientOptions,
     LessonSession,
@@ -42,11 +43,15 @@ from .data import (
     double_reading_subject,
     get_all_assignments,
     get_specific_subjects,
+    get_specific_subjects_next,
+    get_updated_subjects,
     get_subject_without_utf_entry,
     get_summary,
     post_review,
     vocab_katakana_equals_hiragna_subject,
     vocabulary_subject,
+    subject_water_kanji,
+    subject_water_vocabulary,
 )
 
 
@@ -264,13 +269,15 @@ def test_card_answer():
     readings = subject.readings
     meanings = subject.meanings
 
+    old_value = meanings.primary.value
+
     assert len(readings.answers) == 3
     assert len(readings.acceptable_answers) == 1
     assert len(readings.unacceptable_answers) == 2
     assert len(meanings.answers) == 1
 
     assert meanings.primary.value == "one"
-    assert meanings.primary.type == ""
+    assert meanings.primary.type == "vocabulary"
     assert readings.primary.value == "いち"
     assert readings.primary.type == "onyomi"
 
@@ -290,6 +297,7 @@ def test_card_answer():
     assert meanings.solve("skillful") == AnswerType.CORRECT
     assert meanings.solve("skilfull") == AnswerType.A_BIT_OFF
     assert meanings.solve("unskilfull") == AnswerType.INCORRECT
+    meanings.primary.data["meaning"] = old_value
 
 
 def test_no_primary_answer():
@@ -337,7 +345,19 @@ def test_question_answer_values():
     assert question.answer_values == "what"
 
 
-def test_question_primaru():
+def test_use_kanji_reading_on_vocabulary():
+    """When using the meaning of a kanji in the vocabulary it should return inexact."""
+    kanji = Subject(subject_water_kanji)
+    Cache.subjects[kanji.id] = kanji
+    vocabulary = Subject(subject_water_vocabulary)
+
+    question = Question(vocabulary, QuestionType.READING)
+    assert question.solve("すい") == AnswerType.INEXACT
+    assert question.solve("みず") == AnswerType.CORRECT
+    assert question.solve("み") == AnswerType.INCORRECT
+
+
+def test_question_primary():
     """Test the question primary."""
     subject = Subject(double_reading_subject)
     question = Question(subject, QuestionType.READING)
@@ -580,7 +600,7 @@ def test_lesson_tab_composition(mock_subject_per_ids):
     subject = Subject(vocabulary_subject)
     session = LessonSession(client, [subject])
     assert session.tab_composition(subject) == (
-        "This vocabulary is made of 1 kanji:\n- 一: skillful"
+        "This vocabulary is made of 1 kanji:\n- 一: one"
     )
 
 
@@ -645,3 +665,117 @@ def test_beautify_tabs_display():
         "Meaning\x1b[0m\x1b[49m\x1b[39m > Reading\x1b[0m\x1b[49m\x1b[39m"
         " > \x1b[1m\x1b[44m\x1b[37mContext\x1b[0m\x1b[49m\x1b[39m"
     )
+
+
+@patch("hebikani.hebikani.save_settings")
+@patch("hebikani.hebikani.load_settings", return_value={})
+@patch(
+    "hebikani.hebikani.api_request",
+    side_effect=[get_specific_subjects, get_specific_subjects_next],
+)
+def test_client_dowload_new_data(
+    mock_api_request, mock_load_settings, mock_save_settings
+):
+    """Test the client download method"""
+
+    # Assert value sent to save_settings
+    client = Client(API_KEY)
+    client.download()
+    args, _ = mock_save_settings.call_args
+    filename, subjects = args
+    assert filename == "subjects.json"
+    assert len(subjects) == 2
+
+
+@patch("hebikani.hebikani.save_settings")
+@patch("hebikani.hebikani.load_settings", return_value={})
+@patch("hebikani.hebikani.api_request", side_effect=[get_specific_subjects_next])
+def test_client_dowload_new_data_only_one_page(
+    mock_api_request, mock_load_settings, mock_save_settings
+):
+    """Test the client download method"""
+
+    # Assert value sent to save_settings
+    client = Client(API_KEY)
+    client.download()
+    args, _ = mock_save_settings.call_args
+    filename, subjects = args
+    assert filename == "subjects.json"
+    assert len(subjects) == 1
+
+
+@patch(
+    "hebikani.hebikani.setting_creation_date",
+    side_effect=[None, datetime.datetime.now()],
+)
+@patch("hebikani.hebikani.save_settings")
+@patch("hebikani.hebikani.load_settings", return_value={})
+@patch(
+    "hebikani.hebikani.api_request",
+    side_effect=[
+        get_specific_subjects,
+        get_specific_subjects_next,
+        get_updated_subjects,
+    ],
+)
+def test_client_download_updated_subject(
+    mock_api_request, mock_load_settings, mock_save_settings, mock_setting_creation_date
+):
+    """Test the client download method"""
+
+    # Assert value sent to save_settings
+    client = Client(API_KEY)
+    client.download()
+    args, _ = mock_save_settings.call_args
+    filename, subjects = args
+    assert filename == "subjects.json"
+    assert len(subjects) == 2
+    assert subjects[1]["data"]["meanings"][0]["meaning"] == "Two"
+    # With new data
+    mock_load_settings.return_value = subjects
+    client.download()
+    args, _ = mock_save_settings.call_args
+    filename, subjects = args
+    assert filename == "subjects.json"
+    assert len(subjects) == 3
+    assert subjects[1]["data"]["meanings"][0]["meaning"] == "Two two"
+    assert subjects[2]["data"]["meanings"][0]["meaning"] == "Nine"
+
+
+@patch(
+    "hebikani.hebikani.setting_creation_date",
+    side_effect=[None, datetime.datetime.now()],
+)
+@patch("hebikani.hebikani.save_settings")
+@patch("hebikani.hebikani.load_settings", return_value={})
+@patch(
+    "hebikani.hebikani.api_request",
+    side_effect=[
+        get_specific_subjects,
+        get_specific_subjects_next,
+        {},
+    ],
+)
+def test_client_download_no_updated_subject(
+    mock_api_request, mock_load_settings, mock_save_settings, mock_setting_creation_date
+):
+    """Test the client download method"""
+
+    # Assert value sent to save_settings
+    client = Client(API_KEY)
+    client.download()
+    args, _ = mock_save_settings.call_args
+    filename, subjects = args
+    assert len(subjects) == 2
+    assert subjects[0]["data"]["meanings"][0]["meaning"] == "one"
+    assert subjects[1]["data"]["meanings"][0]["meaning"] == "Two"
+
+    # With no new data
+    mock_load_settings.return_value = subjects
+    client.download()
+    args, _ = mock_save_settings.call_args
+    filename, subjects = args
+    assert filename == "subjects.json"
+    assert len(subjects) == 2
+    assert subjects[0]["data"]["meanings"][0]["meaning"] == "one"
+    assert subjects[1]["data"]["meanings"][0]["meaning"] == "Two"
