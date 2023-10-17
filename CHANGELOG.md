@@ -2,6 +2,13 @@
 
 
 
+## v1.7.1 (2023-10-17)
+
+### Fix
+
+* fix: subject without readings (#61) ([`30c891e`](https://github.com/ajite/hebikani/commit/30c891e7f317ff463f604d7674acd8e149efc471))
+
+
 ## v1.7.0 (2023-10-17)
 
 ### Ci
