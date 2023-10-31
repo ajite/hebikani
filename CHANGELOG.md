@@ -2,6 +2,13 @@
 
 
 
+## v1.8.0 (2023-10-31)
+
+### Feature
+
+* feat: set kanji meaning to incorrect on vocabulary (#63) ([`c6f8429`](https://github.com/ajite/hebikani/commit/c6f8429f40465827fb6a8c3f38b886b9eb756faa))
+
+
 ## v1.7.2 (2023-10-17)
 
 ### Fix
