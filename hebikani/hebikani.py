@@ -829,6 +829,7 @@ class Subject(APIObject):
         super().__init__(data)
         self._readings = None
         self._auxiliary_readings = None
+        self._auxiliary_meanings = None
         self._meanings = None
         self._meaning_question = Question(self, QuestionType.MEANING)
         self._reading_question = None
@@ -941,6 +942,20 @@ class Subject(APIObject):
         return self._meanings
 
     @property
+    def auxiliary_meanings(self):
+        # Only works for vocabulary. We want to set kanji answer as inexact
+        if (
+            self.object == SubjectObject.VOCABULARY
+            and len(self.characters) == 1
+            and self._auxiliary_meanings is None
+        ):
+            component_subject_ids = self.data["data"]["component_subject_ids"]
+            kanji = Cache.get_subject(component_subject_ids[0])
+            if kanji:
+                self._auxiliary_meanings = kanji.meanings
+        return self._auxiliary_meanings
+
+    @property
     def reading_question(self):
         """Get the reading question."""
         return self._reading_question
@@ -1043,6 +1058,11 @@ class Question:
                 )
         else:
             _answer = self.subject.meanings.solve(inputed_answer)
+            if _answer == AnswerType.INCORRECT and self.subject.auxiliary_meanings:
+                _answer = self.subject.auxiliary_meanings.solve(inputed_answer)
+                _answer = (
+                    AnswerType.INEXACT if _answer == AnswerType.CORRECT else _answer
+                )
 
         if _answer == AnswerType.INCORRECT:
             self.wrong_answer_count += 1
