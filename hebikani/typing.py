@@ -31,6 +31,7 @@ class SubjectObject(enumerate):
     RADICAL = "radical"
     KANJI = "kanji"
     VOCABULARY = "vocabulary"
+    KANA_VOCABULARY = "kana_vocabulary"
 
 
 class Gender(enumerate):

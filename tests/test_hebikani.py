@@ -46,6 +46,7 @@ from .data import (
     get_specific_subjects_next,
     get_updated_subjects,
     get_subject_without_utf_entry,
+    get_subject_fresh_kanji_vocab,
     get_summary,
     post_review,
     vocab_katakana_equals_hiragna_subject,
@@ -345,8 +346,25 @@ def test_question_answer_values():
     assert question.answer_values == "what"
 
 
-def test_use_kanji_reading_on_vocabulary():
+def test_use_kanji_meaning_on_vocabulary():
     """When using the meaning of a kanji in the vocabulary it should return inexact."""
+    kanji, vocabulary = [Subject(s) for s in get_subject_fresh_kanji_vocab["data"]]
+    Cache.subjects[kanji.id] = kanji
+    Cache.subjects[vocabulary.id] = vocabulary
+    question = Question(vocabulary, QuestionType.MEANING)
+    assert question.solve("Life") == AnswerType.INEXACT
+    assert question.solve("Fresh") == AnswerType.CORRECT
+    assert question.solve("Test") == AnswerType.INCORRECT
+
+    question = Question(kanji, QuestionType.MEANING)
+    assert question.solve("Life") == AnswerType.CORRECT
+    assert question.solve("Fresh") == AnswerType.INCORRECT
+    assert question.solve("Test") == AnswerType.INCORRECT
+    Cache.subjects = {}
+
+
+def test_use_kanji_reading_on_vocabulary():
+    """When using the reading of a kanji in the vocabulary it should return inexact."""
     kanji = Subject(subject_water_kanji)
     Cache.subjects[kanji.id] = kanji
     vocabulary = Subject(subject_water_vocabulary)
@@ -355,6 +373,7 @@ def test_use_kanji_reading_on_vocabulary():
     assert question.solve("すい") == AnswerType.INEXACT
     assert question.solve("みず") == AnswerType.CORRECT
     assert question.solve("み") == AnswerType.INCORRECT
+    Cache.subjects = {}
 
 
 def test_question_primary():
@@ -369,6 +388,8 @@ def test_question_primary():
 def test_card_is_solved():
     """Test the card is solved."""
     subject = Subject(vocabulary_subject)
+    # To avoid making a query online to get the kanji auxiliaries
+    Cache.subjects[440] = subject
     assert subject.solved is False
 
     subject.meaning_question.solve("one")
@@ -384,6 +405,7 @@ def test_card_is_solved():
     subject.reading_question.solve("いち")
 
     assert subject.solved is False
+    Cache.subjects = {}
 
 
 def test_hard_mode():
