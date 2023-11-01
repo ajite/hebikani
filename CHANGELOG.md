@@ -2,6 +2,13 @@
 
 
 
+## v1.8.1 (2023-11-01)
+
+### Fix
+
+* fix: kana vocabulary lessons (#64) ([`acdd131`](https://github.com/ajite/hebikani/commit/acdd1311fcdc21e41d8f7f829d79da5e850bf6f3))
+
+
 ## v1.8.0 (2023-10-31)
 
 ### Feature
