@@ -1391,7 +1391,7 @@ class ReviewSession(Session):
         Returns:
             AnswerType: The answer type.
         """
-        prompt = f"{question.subject.object} - {question.question_type}: "
+        prompt = f"{question.subject.object.replace('_', ' ')} - {question.question_type}: "
 
         # Display the number of answers for the question in hard mode.
         # Some kanji require multiple answers while their vocabulary only need one.
@@ -1488,7 +1488,7 @@ class LessonSession(Session):
         tab_index = 0
         while True:
             clear_terminal()
-            print(f"{subject.object.capitalize()}:\n\n{subject.characters}\n")
+            print(f"{subject.object.capitalize().replace('_', ' ')}:\n\n{subject.characters}\n")
             tabs = ["composition", "meaning", "reading", "context"]
             if (
                 subject.object == SubjectObject.VOCABULARY
@@ -1500,6 +1500,8 @@ class LessonSession(Session):
                 tabs = ["meaning"]
             elif subject.object == SubjectObject.KANJI:
                 tabs = ["composition", "meaning", "reading"]
+            elif subject.object == SubjectObject.KANA_VOCABULARY:
+                tabs = ["meaning"]
 
             print(self.beautify_tabs_display(tabs, tab_index))
             print("\n")
@@ -1538,7 +1540,7 @@ class LessonSession(Session):
         if subject.component_subject_ids:
             subjects = self.client._subject_per_ids(subject.component_subject_ids)
             res = (
-                f"This {subject.object} is made of {len(subjects)} {subjects[0].object}"
+                f"This {subject.object.replace('_', ' ')} is made of {len(subjects)} {subjects[0].object}"
                 + ":\n"
                 + "\n".join(
                     f"- {s.characters}: {s.meanings.primary.value}" for s in subjects
