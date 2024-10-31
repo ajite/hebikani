@@ -21,6 +21,7 @@ mutagen = {version = "^1.45.1", platform = "win32"}
 python-romkan-ng = "^0.3.0"
 cairosvg = "^2.7.1"
 halo = "^0.0.31"
+importlib = "^1.0.4"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.2"
