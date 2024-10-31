@@ -419,10 +419,15 @@ def test_card_is_solved():
     subject = Subject(vocabulary_subject)
     # To avoid making a query online to get the kanji auxiliaries
     Cache.subjects[440] = subject
+    client = Client(API_KEY)
+    session = ReviewSession(client, [subject])
+
     assert subject.solved is False
 
-    subject.meaning_question.solve("one")
-    subject.reading_question.solve("いち")
+    answer_type = subject.meaning_question.solve("one")
+    session.process_answer(subject.meaning_question, answer_type)
+    answer_type = subject.reading_question.solve("いち")
+    session.process_answer(subject.reading_question, answer_type)
 
     assert subject.solved is True
 
@@ -430,8 +435,10 @@ def test_card_is_solved():
 
     assert subject.solved is False
 
-    subject.meaning_question.solve("hello")
-    subject.reading_question.solve("いち")
+    answer_type = subject.meaning_question.solve("hello")
+    session.process_answer(subject.meaning_question, answer_type)
+    answer_type = subject.reading_question.solve("いち")
+    session.process_answer(subject.reading_question, answer_type)
 
     assert subject.solved is False
     Cache.subjects = {}

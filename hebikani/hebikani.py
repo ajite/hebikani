@@ -1064,11 +1064,6 @@ class Question:
                     AnswerType.INEXACT if _answer == AnswerType.CORRECT else _answer
                 )
 
-        if _answer == AnswerType.INCORRECT:
-            self.wrong_answer_count += 1
-        elif _answer == AnswerType.CORRECT:
-            self.solved = True
-
         return _answer
 
     def add_wrong_answer(self):
@@ -1296,6 +1291,7 @@ class ReviewSession(Session):
         if answer_type == AnswerType.CORRECT:
             print("\nCorrect!")
             self.nb_correct_answers += 1
+            question.solved = True
 
         # If the user is a bit off, we show the correct answer and ask
         # to validate his answer
@@ -1343,6 +1339,7 @@ class ReviewSession(Session):
 
             if answer_was_correct not in ["y", "Y"]:
                 self.nb_incorrect_answers += 1
+                question.add_wrong_answer()
                 self.queue.shuffle()
                 # Add the question at the end of the queue
                 # So we don't have it twice in a row.
