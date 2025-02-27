@@ -337,6 +337,35 @@ def test_question_add_wrong_answers():
     assert question.wrong_answer_count == 2
 
 
+# first value is input for answer; the second is input for double_check
+@patch("builtins.input", side_effect=["change me to correct", "y"])
+def test_double_check_y(input_mock):
+    """Test if the question is not marked wrong when double check overrides it."""
+    subject = Subject(get_specific_subjects["data"][0])
+    options = ClientOptions(double_check=True)
+    client = Client(API_KEY, options)
+    session = ReviewSession(client, [subject])
+    question = subject.meaning_question
+    answer_type = session.ask_answer(question)
+    print(answer_type)
+    session.process_answer(question, answer_type)
+    assert question.wrong_answer_count == 0
+
+
+# first value is input for answer; the second is input for double_check
+@patch("builtins.input", side_effect=["leave me incorrect", "n"])
+def test_double_check_n(input_mock):
+    """Test if the question is marked wrong when double check does not override it."""
+    subject = Subject(get_specific_subjects["data"][0])
+    options = ClientOptions(double_check=True)
+    client = Client(API_KEY, options)
+    session = ReviewSession(client, [subject])
+    question = subject.meaning_question
+    answer_type = session.ask_answer(question)
+    session.process_answer(question, answer_type)
+    assert question.wrong_answer_count == 1
+
+
 def test_question_answer_values():
     """Test the question answer values."""
     subject = Subject(double_reading_subject)
@@ -390,10 +419,15 @@ def test_card_is_solved():
     subject = Subject(vocabulary_subject)
     # To avoid making a query online to get the kanji auxiliaries
     Cache.subjects[440] = subject
+    client = Client(API_KEY)
+    session = ReviewSession(client, [subject])
+
     assert subject.solved is False
 
-    subject.meaning_question.solve("one")
-    subject.reading_question.solve("いち")
+    answer_type = subject.meaning_question.solve("one")
+    session.process_answer(subject.meaning_question, answer_type)
+    answer_type = subject.reading_question.solve("いち")
+    session.process_answer(subject.reading_question, answer_type)
 
     assert subject.solved is True
 
@@ -401,8 +435,10 @@ def test_card_is_solved():
 
     assert subject.solved is False
 
-    subject.meaning_question.solve("hello")
-    subject.reading_question.solve("いち")
+    answer_type = subject.meaning_question.solve("hello")
+    session.process_answer(subject.meaning_question, answer_type)
+    answer_type = subject.reading_question.solve("いち")
+    session.process_answer(subject.reading_question, answer_type)
 
     assert subject.solved is False
     Cache.subjects = {}
