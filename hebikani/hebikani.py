@@ -51,6 +51,10 @@ if system() == "Windows":
     from mutagen.mp3 import MP3
 
 API_URL = "https://api.wanikani.com/v2/"
+
+# Timeout in seconds for HTTP requests (API, audio and image downloads).
+REQUEST_TIMEOUT = 30
+
 MIN_NB_SUBJECTS = 1
 MAX_NB_SUJECTS = 500
 
@@ -94,12 +98,13 @@ def api_request(
         headers["If-Modified-Since"] = modified_since.strftime(
             "%a, %d %b %Y %H:%M:%S GMT"
         )
-        headers["If-Modified-Since"] = "Fri, 9 Jul 2021 11:11:11 GMT"
     if method == HTTPMethod.GET:
-        resp = requests.get(url, headers=headers)
+        resp = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
     elif method == HTTPMethod.POST or method == HTTPMethod.PUT:
         json = json or {}  # In case json is None
-        resp = getattr(requests, method.lower())(url, headers=headers, json=json)
+        resp = getattr(requests, method.lower())(
+            url, headers=headers, json=json, timeout=REQUEST_TIMEOUT
+        )
     else:
         raise ValueError("Invalid HTTP method")
     if resp.status_code == 401:
@@ -115,7 +120,7 @@ def url_to_ascii(url: str):
     Args:
         url (str): The url of the image we want to convert to ascii art.
     """
-    request = requests.get(url)
+    request = requests.get(url, timeout=REQUEST_TIMEOUT)
 
     # Convert svg to png
     downloaded_image_file = BytesIO()
@@ -135,11 +140,7 @@ def url_to_ascii(url: str):
     image.paste(downloaded_image, (0, 0), downloaded_image)
     image = ImageOps.invert(image.convert("RGB"))
 
-    ascii_art = ascii_magic.from_image(image, columns=64)
-    f = open("ascii.txt", "w")
-    f.write(ascii_art)
-    f.close()
-    return ascii_art
+    return ascii_magic.from_image(image, columns=64)
 
 
 def wanikani_tag_to_color(text: str) -> str:
@@ -414,13 +415,12 @@ class Client:
         Returns:
             int: The assignment ID.
         """
-        assignment_id = None
         data = api_request(
             HTTPMethod.GET, f"assignments?subject_ids={str(subject_id)}", self.api_key
         )
-        if data["data"]:
-            assignment_id = data["data"][0]["id"]
-        return int(assignment_id)
+        if not data["data"]:
+            raise ValueError(f"No assignment found for subject {subject_id}.")
+        return int(data["data"][0]["id"])
 
 
 class APIObject:
@@ -463,7 +463,7 @@ class Audio(APIObject):
     def download(self):
         """Download the audio if not cached."""
         if self.url not in audio_cache.keys():
-            r = requests.get(self.url)
+            r = requests.get(self.url, timeout=REQUEST_TIMEOUT)
             # We have to use delete is false otherwise we have permission
             # error on windows
             f = tempfile.NamedTemporaryFile(suffix=self.ext, delete=False)
@@ -698,14 +698,13 @@ class AnswerManager:
         """
         return ", ".join(a.value for a in self.acceptable_answers)
 
-    def solve(self, inputed_answer: str, hard_mode: bool = False) -> bool:
+    def solve(self, inputed_answer: str, hard_mode: bool = False) -> AnswerType:
         """Check wether an answer is correct."""
         inputed_answer = inputed_answer.lower().strip()
         answer_type = AnswerType.INCORRECT
-        if hard_mode and QuestionType.READING:
+        if hard_mode and self.question_type == QuestionType.READING:
             # In hard mode check that all the answers are correct.
             # Only works for reading questions.
-            answer_type = AnswerType.CORRECT
             answers = [i.strip() for i in inputed_answer.split(",")]
             if set(answers) == set(
                 [a.value for a in self.hard_mode_acceptable_answers]
@@ -1133,33 +1132,33 @@ class Session:
         Returns:
             Audio: The audio to play.
         """
-        audio = None
-
-        audio_cache_urls = list(
-            set(audio_cache.keys()).intersection(set([a.url for a in audios]))
-        )
+        cached_audios = [a for a in audios if a.url in audio_cache]
         # use cache
-        if audio_cache_urls:
-            audio = list(filter(lambda a: a.url in audio_cache_urls[0], audios))[0]
+        if cached_audios:
+            return cached_audios[0]
+
         #  In alternate mode select a random voice actor to begin with
         #  We then alternate with female and male voice actors
-        elif self.client.options.voice_mode == VoiceMode.FEMALE or (
+        preferred_gender = None
+        if self.client.options.voice_mode == VoiceMode.FEMALE or (
             self.client.options.voice_mode == VoiceMode.ALTERNATE
             and self.last_audio_played
             and self.last_audio_played.voice_gender == Gender.MALE
         ):
-            audio = list(filter(lambda a: a.voice_gender == Gender.FEMALE, audios))[0]
+            preferred_gender = Gender.FEMALE
         elif self.client.options.voice_mode == VoiceMode.MALE or (
             self.client.options.voice_mode == VoiceMode.ALTERNATE
             and self.last_audio_played
             and self.last_audio_played.voice_gender == Gender.FEMALE
         ):
-            audio = list(filter(lambda a: a.voice_gender == Gender.MALE, audios))[0]
-        else:
-            random_index = random.randrange(len(audios))
-            audio = audios[random_index]
+            preferred_gender = Gender.MALE
 
-        return audio
+        candidates = [a for a in audios if a.voice_gender == preferred_gender]
+        if candidates:
+            return candidates[0]
+
+        # No gender preference, or no recording for the preferred gender.
+        return random.choice(audios)
 
 
 class QuestionQueue(list):
