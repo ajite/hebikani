@@ -1,6 +1,6 @@
 name: Build PyPi
 
-# Only trigger, when the build workflow succeeded
+# Only trigger when the CI workflow succeeded on a release commit.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -9,11 +9,12 @@ on:
 
 jobs:
     pypi:
+        if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
         concurrency: release
         runs-on: ubuntu-latest
         steps:
           - name: Checkout
-            uses: actions/checkout@v3
+            uses: actions/checkout@v4
             with:
               fetch-depth: 0
           - run: python3 -m pip install --upgrade build && python3 -m build
@@ -21,3 +22,4 @@ jobs:
             uses: pypa/gh-action-pypi-publish@release/v1
             with:
               password: ${{ secrets.PYPI_TOKEN }}
+              skip-existing: true
