@@ -1,7 +1,7 @@
 """Define all the enums used in the CLI."""
 
 
-class HTTPMethod(object):
+class HTTPMethod:
     """Define the HTTP methods."""
 
     GET = "GET"
@@ -9,23 +9,23 @@ class HTTPMethod(object):
     PUT = "PUT"
 
 
-class AnswerType(enumerate):
+class AnswerType:
     """Enum for the answer type."""
 
     CORRECT = "correct"
     INCORRECT = "incorrect"
-    INEXACT = "inexact"  # when the answer is not correct but is close
-    A_BIT_OFF = "a_bit_off"  # when the answer is not correct but is close
+    INEXACT = "inexact"  # right answer to another question (e.g. onyomi vs kunyomi)
+    A_BIT_OFF = "a_bit_off"  # close to a correct meaning (typo)
 
 
-class QuestionType(enumerate):
+class QuestionType:
     """Define the question types."""
 
     MEANING = "meaning"
     READING = "reading"
 
 
-class SubjectObject(enumerate):
+class SubjectObject:
     """Subject objects."""
 
     RADICAL = "radical"
@@ -34,14 +34,14 @@ class SubjectObject(enumerate):
     KANA_VOCABULARY = "kana_vocabulary"
 
 
-class Gender(enumerate):
+class Gender:
     """Gender"""
 
     FEMALE = "female"
     MALE = "male"
 
 
-class VoiceMode(enumerate):
+class VoiceMode:
     """Voice Mode"""
 
     ALTERNATE = "alternate"

@@ -1,3 +1,7 @@
+from unittest.mock import patch
+
+import pytest
+
 import hebikani.input as input_kana
 
 
@@ -63,3 +67,36 @@ def test_add_char_to_builder():
 
     word.add_romaji("a")
     assert word.kana == "おはヨYおっは"
+
+
+def test_kana_builder_v_sounds():
+    """ヴ is outside the basic katakana block but is still a kana."""
+    word = input_kana.KanaWordBuilder("VU")
+    assert word.kana == "ヴ"
+    word.remove_last_char()
+    assert word.kana == ""
+
+
+def test_input_kana_rejects_non_str_prompt():
+    with pytest.raises(TypeError):
+        input_kana.input_kana(1)
+
+
+@patch(
+    "hebikani.input.getch",
+    side_effect=[b"a", b"r", b"i", b"\x7f", b"\x01", b"g", b"\r", b"a", b"\r"],
+)
+def test_input_kana_flow(mock_getch, capsys):
+    """Backspace erases a kana, control keys beep, enter needs a full kana word."""
+    assert input_kana.input_kana("> ") == "あが"
+    out = capsys.readouterr().out
+    assert out.startswith("> ")
+    assert "\a" in out
+    assert out.endswith("あが\n")
+
+
+@patch("hebikani.input.getch", side_effect=[b"\x08", b"\x03"])
+def test_input_kana_interrupt(mock_getch):
+    """Backspace on an empty word is ignored and ctrl-c raises."""
+    with pytest.raises(KeyboardInterrupt):
+        input_kana.input_kana("> ")

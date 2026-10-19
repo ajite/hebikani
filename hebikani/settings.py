@@ -48,6 +48,13 @@ def get_settings_path(name):
         return os.path.expanduser(f"~/.{name}")
 
 
+def _settings_file(filename: str) -> str:
+    """Full path of a settings file, creating the settings directory if needed."""
+    setting_path = get_settings_path("hebikani")
+    os.makedirs(setting_path, exist_ok=True)
+    return os.path.join(setting_path, filename)
+
+
 def save_settings(filename, settings):
     """Save settings to a JSON file.
 
@@ -55,12 +62,7 @@ def save_settings(filename, settings):
         filename (str): The name of the file to save to.
         settings (dict): The settings to save.
     """
-    setting_path = get_settings_path("hebikani")
-    if not os.path.exists(setting_path):
-        os.makedirs(setting_path)
-    filename = os.path.join(setting_path, filename)
-
-    with open(filename, "w") as f:
+    with open(_settings_file(filename), "w") as f:
         json.dump(settings, f, indent=4, sort_keys=True)
 
 
@@ -71,32 +73,24 @@ def load_settings(filename):
         filename (str): The name of the file to load from.
 
     Returns:
-        dict: The settings.
+        dict: The settings, empty if the file does not exist.
     """
-    setting_path = get_settings_path("hebikani")
-    if not os.path.exists(setting_path):
-        os.makedirs(setting_path)
-    filename = os.path.join(setting_path, filename)
-
-    if os.path.exists(filename):
-        with open(filename) as f:
-            return json.load(f)
-    else:
+    path = _settings_file(filename)
+    if not os.path.exists(path):
         return {}
+    with open(path) as f:
+        return json.load(f)
 
 
-def setting_creation_date(filename) -> datetime.datetime:
-    """Get the creation date of the settings file.
+def setting_modified_date(filename) -> datetime.datetime:
+    """Get the last modification date of a settings file.
 
     Args:
-        filename (str): The name of the file to load from.
+        filename (str): The name of the file.
     Returns:
-        datetime.datetime: The creation date.
+        datetime.datetime: The modification date, None if the file does not exist.
     """
-    setting_path = get_settings_path("hebikani")
-    filename = os.path.join(setting_path, filename)
-    if os.path.exists(filename):
-        ctime = os.path.getctime(filename=filename)
-        return datetime.datetime.fromtimestamp(ctime)
-    else:
+    path = _settings_file(filename)
+    if not os.path.exists(path):
         return None
+    return datetime.datetime.fromtimestamp(os.path.getmtime(path))

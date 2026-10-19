@@ -128,15 +128,38 @@ def test_client_summary_hist_one_day_after():
     )
 
 
-@patch("hebikani.hebikani.api_request", return_value=get_specific_subjects)
+@patch(
+    "hebikani.hebikani.api_request",
+    side_effect=[get_specific_subjects, get_specific_subjects_next],
+)
 def test_client_subject_per_ids(mock_api_request):
-    """Test the retrieving subject per ids."""
+    """Test the retrieving subject per ids, following pagination."""
     client = Client(API_KEY)
     subjects = client._subject_per_ids([440])
     assert subjects[0].id == 440
     assert subjects[0].object == SubjectObject.KANJI
     assert subjects[0].context_sentences == []
     assert subjects[0].component_subject_ids == [1]
+    assert mock_api_request.call_count == 2
+    assert len(Cache.subjects) == 2
+
+    # Cached subjects are not downloaded again.
+    client._subject_per_ids([440])
+    assert mock_api_request.call_count == 2
+
+
+def test_cache_get_subject_missing():
+    """Test a subject missing from the cache is fetched through the client."""
+    with pytest.raises(ValueError):
+        Cache.get_subject(1)
+
+    subject = Subject(get_specific_subjects["data"][0])
+    with patch.object(
+        Client, "_subject_per_ids", side_effect=lambda ids: Cache.set_subject(subject)
+    ) as mock_ids:
+        Client(API_KEY)
+        assert Cache.get_subject(440) is subject
+        mock_ids.assert_called_once_with([440])
 
 
 def test_vocabulary_subject():
@@ -162,30 +185,21 @@ def test_ascii_art(mock_request_get):
     """Check if the ASCII art is correctly displayed."""
     """Test the ascii art creation when no utf character."""
 
-    # svg image sample from WaniKani API
-    img_f = open(os.path.join(os.path.dirname(__file__), "assets/no_utf.svg"), "rb")
+    assets = os.path.join(os.path.dirname(__file__), "assets")
+    with open(os.path.join(assets, "no_utf.svg"), "rb") as img_f:
+        svg = img_f.read()
+    with open(os.path.join(assets, "no_utf.txt")) as ascii_f:
+        expected_ascii = ascii_f.read()
 
-    # the image in ascii the desired ASCII format
-    ascii_f = open(os.path.join(os.path.dirname(__file__), "assets/no_utf.txt"), "r")
-
-    class MockClass:
-        """To mock the requests.get."""
-
-        @classmethod
-        def json(cls):
-            return get_subject_without_utf_entry
-
-        content = img_f.read()
-        status_code = 200
-
-    mock_request_get.return_value = MockClass
+    # The same mock serves the subject data and the svg image.
+    mock_request_get.return_value.status_code = 200
+    mock_request_get.return_value.content = svg
+    mock_request_get.return_value.json.return_value = get_subject_without_utf_entry
 
     client = Client(API_KEY)
     subjects = client._subject_per_ids([8769])
     assert subjects[0].id == 8769
-
-    # The card front should be the same as the ascii art
-    assert subjects[0].characters == ascii_f.read()
+    assert subjects[0].characters == expected_ascii
 
 
 def test_card_audio_creation():
@@ -389,7 +403,6 @@ def test_use_kanji_meaning_on_vocabulary():
     assert question.solve("Life") == AnswerType.CORRECT
     assert question.solve("Fresh") == AnswerType.INCORRECT
     assert question.solve("Test") == AnswerType.INCORRECT
-    Cache.subjects = {}
 
 
 def test_use_kanji_reading_on_vocabulary():
@@ -402,7 +415,6 @@ def test_use_kanji_reading_on_vocabulary():
     assert question.solve("すい") == AnswerType.INEXACT
     assert question.solve("みず") == AnswerType.CORRECT
     assert question.solve("み") == AnswerType.INCORRECT
-    Cache.subjects = {}
 
 
 def test_question_primary():
@@ -419,7 +431,7 @@ def test_card_is_solved():
     subject = Subject(vocabulary_subject)
     # To avoid making a query online to get the kanji auxiliaries
     Cache.subjects[440] = subject
-    client = Client(API_KEY)
+    client = Client(API_KEY, ClientOptions(dry_run=True))
     session = ReviewSession(client, [subject])
 
     assert subject.solved is False
@@ -441,7 +453,6 @@ def test_card_is_solved():
     session.process_answer(subject.reading_question, answer_type)
 
     assert subject.solved is False
-    Cache.subjects = {}
 
 
 def test_hard_mode():
@@ -618,22 +629,21 @@ def test_clear_audio_cache():
 
     clear_audio_cache()
 
-    # File should be deleted
+    # File should be deleted and forgotten
     assert os.path.isfile(f.name) is False
+    assert audio_cache == {}
 
 
 @freeze_time("2018-04-11T00:00:00.000000+00:00", tz_offset=+8)
 def test_utc_to_local():
-    """It should convert UTC to local time.
+    """It should convert UTC to naive local time.
     Local time has been set to GMT +8
     """
     utc_time = datetime.datetime.fromisoformat("2018-04-11T00:00:00.000000+00:00")
     local_time = utc_to_local(utc_time)
 
-    assert local_time == datetime.datetime.fromisoformat(
-        "2018-04-11T08:00:00.000000+00:00"
-    )
-    assert local_time != utc_time
+    assert local_time == datetime.datetime(2018, 4, 11, 8)
+    assert local_time.tzinfo is None
 
 
 @patch("hebikani.hebikani.api_request", return_value=post_review)
@@ -763,7 +773,7 @@ def test_client_dowload_new_data_only_one_page(
 
 
 @patch(
-    "hebikani.hebikani.setting_creation_date",
+    "hebikani.hebikani.setting_modified_date",
     side_effect=[None, datetime.datetime.now()],
 )
 @patch("hebikani.hebikani.save_settings")
@@ -777,7 +787,7 @@ def test_client_dowload_new_data_only_one_page(
     ],
 )
 def test_client_download_updated_subject(
-    mock_api_request, mock_load_settings, mock_save_settings, mock_setting_creation_date
+    mock_api_request, mock_load_settings, mock_save_settings, mock_setting_modified_date
 ):
     """Test the client download method"""
 
@@ -801,7 +811,7 @@ def test_client_download_updated_subject(
 
 
 @patch(
-    "hebikani.hebikani.setting_creation_date",
+    "hebikani.hebikani.setting_modified_date",
     side_effect=[None, datetime.datetime.now()],
 )
 @patch("hebikani.hebikani.save_settings")
@@ -815,7 +825,7 @@ def test_client_download_updated_subject(
     ],
 )
 def test_client_download_no_updated_subject(
-    mock_api_request, mock_load_settings, mock_save_settings, mock_setting_creation_date
+    mock_api_request, mock_load_settings, mock_save_settings, mock_setting_modified_date
 ):
     """Test the client download method"""
 

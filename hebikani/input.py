@@ -13,6 +13,11 @@ import romkan
 
 __all__ = ["input_kana", "KanaWordBuilder"]
 
+# Hiragana and katakana ranges, including ゔ and ヴ.
+KANA = "ぁ-ゖァ-ヺ"
+KANA_RE = re.compile(f"[{KANA}]")
+KANA_WORD_RE = re.compile(f"^[{KANA},ー]+$")
+
 
 def split_at_uppercase(s):
     """Split a string at uppercase letters.
@@ -52,12 +57,9 @@ class KanaWordBuilder:
     def remove_last_char(self):
         """Remove the last character from the kana word."""
         last_kana = self.kana[-1]
-        if re.match(r"[ぁ-んァ-ン]", last_kana):
-            # Check if the last kana is an hiragana or katakana.
-            last_kana_romaji = romkan.to_roma(last_kana)
-            self.romaji = self.romaji[: -len(last_kana_romaji)]
+        if KANA_RE.match(last_kana):
+            self.romaji = self.romaji[: -len(romkan.to_roma(last_kana))]
         else:
-            # Remove the last character.
             self.romaji = self.romaji[:-1]
 
     @property
@@ -76,7 +78,11 @@ class KanaWordBuilder:
 
 
 if sys.platform == "win32":
-    from msvcrt import getch  # type: ignore
+    import msvcrt
+
+    def getch(use_raw_input=True):
+        """Get a character from the user. Windows has no raw/cbreak distinction."""
+        return msvcrt.getch()
 
 else:  # macOS and Linux
     import termios
@@ -125,7 +131,7 @@ def input_kana(prompt):
             raise KeyboardInterrupt
 
         key = ord(ch)
-        if key == 13 and re.compile(r"^[ぁ-んァ-ン,ー]+$").match(kana_word_builder.kana):
+        if key == 13 and KANA_WORD_RE.match(kana_word_builder.kana):
             sys.stdout.write("\n")
             return kana_word_builder.kana
         # Backspace/Del key erases previous output.
@@ -140,8 +146,6 @@ def input_kana(prompt):
             sys.stdout.write(f"\r\x1b[K{prompt}{kana_word_builder.kana}\a")
             sys.stdout.flush()
         else:
-            # Key is part of the password; display the mask character.
-            char = chr(key)
-            kana_word_builder.add_romaji(char)
+            kana_word_builder.add_romaji(chr(key))
             sys.stdout.write(f"\r{prompt}{kana_word_builder.kana}")
             sys.stdout.flush()
